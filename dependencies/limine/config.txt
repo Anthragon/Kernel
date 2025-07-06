@@ -1,5 +1,0 @@
-timeout: 0
-
-/SystemElva
-    protocol: limine
-    kernel_path: boot():/kernel

@@ -1,23 +1,18 @@
 .{
-    .name = .SElva_kernel,
+    .name = .SElva_kernel_core,
     .version = "0.0.0",
 
-    .fingerprint = 0xfa81a7ec68ed921d,
-    .minimum_zig_version = "0.14.0",
-
     .dependencies = .{
-        .core = .{ .path = "core" }
+        .elvaAHCI = .{ .path = "../modules/elvaAHCI" }
     },
 
     .paths = .{
+        "src",
+        "linkage",
+
         "build.zig",
         "build.zig.zon",
-        "apps",
-        "core",
-        "docs",
-        "afterrun.sh",
-        "LICENSE",
-        ".gitignore",
-        "README.md",
-    },
+
+        "LICENSE"
+        },
 }
