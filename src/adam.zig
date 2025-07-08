@@ -9,6 +9,7 @@ const debug = root.debug;
 // than root was! - Terry A. Davis
 
 const modahci = @import("elvaAHCI_module");
+const modfat = @import("elvaFAT_module");
 
 pub fn _start(args: ?*anyopaque) callconv(.c) noreturn {
     _ = args;
@@ -19,6 +20,7 @@ pub fn _start(args: ?*anyopaque) callconv(.c) noreturn {
 
     // TODO implement loading modules list from 
     // build options
+
     _ = modules.register_module(
         modahci.module_name,
         modahci.module_version,
@@ -27,6 +29,16 @@ pub fn _start(args: ?*anyopaque) callconv(.c) noreturn {
 
         modahci.init,
         modahci.deinit,
+    );
+
+    _ = modules.register_module(
+        modfat.module_name,
+        modfat.module_version,
+        modfat.module_author,
+        modfat.module_liscence,
+
+        modfat.init,
+        modfat.deinit,
     );
 
     threading.procman.lstasks();

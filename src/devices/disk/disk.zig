@@ -40,12 +40,15 @@ pub fn append_device(
     };
     if (devtype != null) entry.*.?.type = devtype.?;
 
-    entry.*.?.fs_node = .init(entry.*.?.type, free_slot, allocator);
-    
+    const lower_str = allocator.alloc(u8, entry.*.?.type.len) catch @panic("OOM");
+    _ = std.ascii.lowerString(lower_str, entry.*.?.type);
+
+    entry.*.?.fs_node = .init(lower_str, free_slot, allocator);
+
     const dev_dir = root.fs.get_root().branch("dev").val;
     _ = dev_dir.append(&entry.*.?.fs_node.node);
 
-    root.fs.lsdir(dev_dir);
+    root.fs.lsroot();
 
     return free_slot;
 }

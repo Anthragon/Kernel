@@ -36,9 +36,12 @@ pub const FsNode = extern struct {
     vtable: *const FsNodeVtable,
 
     pub fn append(s: *@This(), node: *FsNode) callconv(.c) FsResult(void) {
+        if (s.ctx == null) return .err(.nullContext);
+
         return s.vtable.append_node(s.ctx.?, node);
     }
     pub fn branch(s: *@This(), path: [*:0]const u8) callconv(.c) FsResult(*FsNode) {
+        if (s.ctx == null) return .err(.nullContext);
 
         if (!s.iterable) return .err(.notIterable);
         if (s.vtable.branch) |b| return b(s.ctx.?, path); 
@@ -67,7 +70,9 @@ pub const FsNode = extern struct {
         return q.branch(path[j..]);
     }
     pub fn get_iterator(s: *@This()) callconv(.c) FsResult(NodeIterator) {
+        if (s.ctx == null) return .err(.nullContext);
         if (!s.iterable) return .err(.notIterable);
+
         return .ret(.{ .node = s });
     }
 };
@@ -110,7 +115,7 @@ pub fn FsResult(T: type) type {
             };
         }
 
-        pub fn isok(s: *@This()) bool {
+        pub fn isok(s: *const @This()) bool {
             return s.@"error" == .noerror;
         }
     };
@@ -118,6 +123,7 @@ pub fn FsResult(T: type) type {
 pub const FsError = enum(usize) {
     noerror = 0,
 
-    notIterable = 1,
-    outOfBounds = 2,
+    nullContext = 1,
+    notIterable = 2,
+    outOfBounds = 3,
 };

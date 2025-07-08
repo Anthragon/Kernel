@@ -99,10 +99,11 @@ pub inline fn has_waiting_modules() bool {
     return unitialized_modules_list.items.len > 0;
 }
 pub inline fn get_next_waiting_module() ?*Module {
-    return unitialized_modules_list.pop() orelse {
+    if (unitialized_modules_list.items.len == 0) {
         debug.err("No waiting modules to pop.\n", .{});
         return null;
-    };
+    }
+    return unitialized_modules_list.orderedRemove(0);
 }
 
 pub const Module = struct {

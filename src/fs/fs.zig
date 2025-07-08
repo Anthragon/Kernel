@@ -52,6 +52,48 @@ pub fn lsdir(node: *FsNode) void {
 /// Dumps all the file system
 pub fn lsroot() void {
 
-    // TODO bruh implement this shit
+    const Entry = struct {
+        iter: FsNode.FsNodeIterator,
+        level: usize,
+    };
+    var stack: std.ArrayList(Entry) = .init(allocator);
+    defer stack.deinit();
+
+    const iterator = fs_root.node.get_iterator();
+    stack.append(.{
+        .iter = iterator.val,
+        .level = 0
+    }) catch @panic("OOM");
+
+    while (stack.items.len > 0) {
+
+        var last = &stack.items[stack.items.len - 1];
+
+        if (last.iter.next()) |node| {
+
+            for (0..last.level) |_| debug.print("  ", .{});
+            if (node.iterable) {
+                const mem = std.fmt.allocPrint(allocator, "{s}/", .{node.name}) catch @panic("OOM");
+                debug.print("{s/: <20} {s}\n", .{ mem, node.type });
+                allocator.free(mem);
+            } else {
+                debug.print("{s: <20} {s}\n", .{ node.name, node.type });
+            }
+
+            if (node.iterable) {
+
+                const iter = node.get_iterator();
+
+                if (iter.isok()) {
+                    stack.append(.{
+                        .iter = iter.val,
+                        .level = last.level + 1,
+                    }) catch @panic("OOM");
+                }
+            }
+        }
+        else _ = stack.pop();
+
+    }
 
 }

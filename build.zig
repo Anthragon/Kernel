@@ -58,7 +58,10 @@ pub fn build(b: *std.Build) void {
 
     // TODO add dependences dinamically
     const elva_ahci = b.dependency("elvaAHCI", .{}).module("elvaAHCI");
+    const elva_fat = b.dependency("elvaFAT", .{}).module("elvaFAT");
+
     kernel_mod.addImport("elvaAHCI_module", elva_ahci);
+    kernel_mod.addImport("elvaFAT_module", elva_fat);
 
 
     // kernel executable

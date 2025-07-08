@@ -27,7 +27,7 @@ pub const VirtualDirectory = struct {
             .iterable = true,
 
             .ctx = null,
-            .vtable = &vtable
+            .vtable = &vtable,
         };
 
         return this;
@@ -84,7 +84,7 @@ pub const DiskEntry = struct {
             .iterable = true,
             
             .ctx = null,
-            .vtable = undefined
+            .vtable = undefined,
         };
 
         return this;
@@ -96,6 +96,7 @@ pub const DiskEntry = struct {
     pub fn set_context(s: *VirtualDirectory) void {
         s.node.ctx = s;
     }
+
 
 };
 
