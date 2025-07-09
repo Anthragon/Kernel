@@ -4,6 +4,7 @@
 
     .dependencies = .{
         .elvaAHCI = .{ .path = "../modules/elvaAHCI" },
+        .elvaDisk = .{ .path = "../modules/elvaDisk" },
         .elvaFAT = .{ .path = "../modules/elvaFAT" },
     },
 
