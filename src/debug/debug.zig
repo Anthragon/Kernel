@@ -42,6 +42,9 @@ pub fn dumpHex(bytes: []const u8) void {
     dumpHexInternal(bytes, tty_config, serial.writer(stdout)) catch {};
     dumpHexInternal(bytes, tty_config, swriter()) catch {};
 }
+pub fn dumpHexErr(bytes: []const u8) void {
+    dumpHexInternal(bytes, tty_config, serial.writer(stderr)) catch {};
+}
 pub fn dumpHexFailable(bytes: []const u8) void {
     try dumpHexInternal(bytes, tty_config, serial.writer(stdout));
 }

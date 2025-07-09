@@ -8,8 +8,11 @@ const debug = root.debug;
 // Adam is a better term for the first father of all tasks
 // than root was! - Terry A. Davis
 
-const modahci = @import("elvaAHCI_module");
-const modfat = @import("elvaFAT_module");
+const builtin_modules = .{
+    @import("elvaAHCI_module"),
+    @import("elvaDisk_module"),
+    @import("elvaFAT_module"),
+};
 
 pub fn _start(args: ?*anyopaque) callconv(.c) noreturn {
     _ = args;
@@ -21,25 +24,17 @@ pub fn _start(args: ?*anyopaque) callconv(.c) noreturn {
     // TODO implement loading modules list from 
     // build options
 
-    _ = modules.register_module(
-        modahci.module_name,
-        modahci.module_version,
-        modahci.module_author,
-        modahci.module_liscence,
+    inline for (builtin_modules) |mod| {
+        _ = modules.register_module(
+            mod.module_name,
+            mod.module_version,
+            mod.module_author,
+            mod.module_liscence,
 
-        modahci.init,
-        modahci.deinit,
-    );
-
-    _ = modules.register_module(
-        modfat.module_name,
-        modfat.module_version,
-        modfat.module_author,
-        modfat.module_liscence,
-
-        modfat.init,
-        modfat.deinit,
-    );
+            mod.init,
+            mod.deinit,
+        );
+    }
 
     threading.procman.lstasks();
     modules.lsmodules();
