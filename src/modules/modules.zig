@@ -9,7 +9,7 @@ var modules_list: ModulesList = undefined;
 var unitialized_modules_list: ModulesList = undefined;
 
 pub fn init() void {
-    debug.err("Initializing modules service...\n", .{});
+    debug.err(" ## Setting up modules service...\n", .{});
 
     modules_list = ModulesList.init(allocator);
     unitialized_modules_list = ModulesList.init(allocator);

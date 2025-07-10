@@ -36,8 +36,7 @@ pub const User = struct {
 };
 
 pub fn init() void {
-
-    root.debug.err("Initializing auth service...\n", .{});
+    root.debug.err(" ## Setting up auth service...\n", .{});
 
     user_list = UserList.init(allocator);
 

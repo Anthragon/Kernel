@@ -9,12 +9,9 @@ pub const Allignment = zig_mem.Alignment;
 pub const heap = @import("heap.zig");
 
 /// Physical memory manager
-const pmm = switch (root.system.arch) {
-    .x86_64 => @import("../system/x86_64/mem/pmm.zig"),
-    //.x86 => @import("../system/x86_64/mem/pmm.zig"),
-    //.aarch64 => @import("../system/x86_64/mem/pmm.zig"),
-    else => undefined
-};
+pub const pmm = root.system.pmm;
+/// Virtual memory manager
+pub const vmm = root.system.vmm;
 
 pub const ptrFromPhys = pmm.ptrFromPhys;
 pub const physFromPtr = pmm.physFromPtr;

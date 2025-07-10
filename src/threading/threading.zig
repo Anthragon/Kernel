@@ -10,7 +10,7 @@ pub const procman = @import("process_manager.zig");
 pub const scheduler = @import("scheduler.zig");
 
 pub fn init() void {
-    root.debug.err("Initializing threading service...\n", .{});
+    root.debug.err(" ## Setting up threading service...\n", .{});
 
     procman.init();
     scheduler.init();

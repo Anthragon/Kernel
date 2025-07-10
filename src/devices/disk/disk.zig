@@ -45,10 +45,12 @@ pub fn append_device(
 
     entry.*.?.fs_node = .init(lower_str, free_slot, allocator);
 
-    const dev_dir = root.fs.get_root().branch("dev").val;
+    const dev_dir = root.fs.get_root().branch("dev").value;
     _ = dev_dir.append(&entry.*.?.fs_node.node);
 
+    debug.print("\nPrinting fs tree:\n", .{});
     root.fs.lsroot();
+    debug.print("\n", .{});
 
     return free_slot;
 }

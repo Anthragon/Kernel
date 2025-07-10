@@ -17,12 +17,17 @@ pub const fs = @import("fs/fs.zig");
 pub const devices = @import("devices/devices.zig");
 /// Users, authentication and permissions
 pub const auth = @import("auth/auth.zig");
+/// Events service
+pub const event = @import("event/event.zig");
 /// Processes, tasks and execution
 pub const threading = @import("threading/threading.zig");
 /// Modules and drivers management
 pub const modules = @import("modules/modules.zig");
+
 /// Utils and help scripts
 pub const utils = @import("utils/utils.zig");
+/// Interoperability help scripts
+pub const interop = @import("interop/interop.zig");
 
 /// Field that allow zig interfaces to comunicate
 /// with the kernel. Do not mind.
@@ -61,12 +66,14 @@ pub fn main(_boot_info: BootInfo) noreturn {
     // Printing hello world
     debug.print("\nHello, World from {s}!\n", .{ @tagName(system.arch) });
  
-    debug.err("# Initializing OS specific\n", .{});
+    debug.err("\n# Initializing OS specific\n", .{});
+
+    event.init();   // Event must init first!
+    modules.init(); // Modules must init second!
 
     fs.init();
     auth.init();   
-    devices.init();
-    modules.init();         
+    devices.init();       
     threading.init();
     system.time.init();
 
@@ -107,20 +114,34 @@ pub inline fn get_boot_info() BootInfo {
     return boot_info;
 }
 
+var panicked: bool = false;
 pub fn panic(msg: []const u8, _: ?*std.builtin.StackTrace, return_address: ?usize) noreturn {
+    if (panicked) {
+        debug.print("Double panic!\n", .{});
+        system.assembly.halt();
+    }
+    panicked = true;
 
-    debug.print("\n!!! KERNEL PANIC !!!\n", .{});
-    debug.print("Error: {s}\n\n", .{msg});
+    debug.print("\n!--------------------------------------------------!\n", .{});
+    debug.print("\n!                   KERNEL PANIC                   !\n", .{});
+    debug.print("\n!--------------------------------------------------!\n", .{});
+    debug.print("\nError: {s}\n\n", .{msg});
 
-    system.pmm.lsmemblocks();
+    var dalloc = mem.vmm.get_debug_allocator_controller();
+    if (dalloc != null) {
+        _ = dalloc.?.deinit();
+    }
 
     if (return_address) |ret| {
-        debug.print("Stack Trace in stderr\n", .{});
-        debug.err("Stack Trace:\n", .{});
+
+        debug.print("\nStack Trace in stderr\n", .{});
+        debug.err("\nStack Trace:\n", .{});
         debug.dumpStackTrace(ret);
+
     } else {
         debug.print("No Stack Trace\n", .{});
     }
 
+    panicked = false;
     system.assembly.halt();
 }

@@ -1,7 +1,8 @@
 const std = @import("std");
 const root = @import("root");
+const interop = root.interop;
 const FsNode = root.fs.FsNode;
-const FsResult = root.fs.FsResult;
+const Result = interop.Result;
 
 const ChildrenList = std.ArrayList(*FsNode);
 
@@ -47,15 +48,15 @@ pub const VirtualDirectory = struct {
 
     // Vtable functions after here
 
-    fn append(ctx: *anyopaque, node: *FsNode) callconv(.c) FsResult(void) {
+    fn append(ctx: *anyopaque, node: *FsNode) callconv(.c) Result(void) {
         const s: *VirtualDirectory = @ptrCast(@alignCast(ctx));
         s.children.append(node) catch @panic("OOM");
         return .retvoid();
     }
-    fn getchild(ctx: *anyopaque, index: usize) callconv(.c) FsResult(*FsNode) {
+    fn getchild(ctx: *anyopaque, index: usize) callconv(.c) Result(*FsNode) {
         const s: *VirtualDirectory = @ptrCast(@alignCast(ctx));
         if (index < 0 or index >= s.children.items.len) return .err(.outOfBounds);
-        return .ret(s.children.items[index]);
+        return .val(s.children.items[index]);
     }
 
 };

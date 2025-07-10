@@ -2,12 +2,15 @@ const std = @import("std");
 const root = @import("root");
 const debug = root.debug;
 
+const interop = root.interop;
+const Result = interop.Result;
+
 pub const FsNode = extern struct {
 
     pub const FsNodeVtable = extern struct {
-        append_node: *const fn (ctx: *anyopaque, node: *FsNode) callconv(.c) FsResult(void),
-        branch: ?*const fn (ctx: *anyopaque, path: [*:0]const u8) callconv(.c) FsResult(*FsNode) = null,
-        get_child: *const fn (ctx: *anyopaque, index: usize) callconv(.c) FsResult(*FsNode),
+        append_node: *const fn (ctx: *anyopaque, node: *FsNode) callconv(.c) Result(void),
+        branch: ?*const fn (ctx: *anyopaque, path: [*:0]const u8) callconv(.c) Result(*FsNode) = null,
+        get_child: *const fn (ctx: *anyopaque, index: usize) callconv(.c) Result(*FsNode),
     };
     pub const FsNodeIterator = NodeIterator;
 
@@ -35,12 +38,12 @@ pub const FsNode = extern struct {
     /// Hook for the node's virtual functions
     vtable: *const FsNodeVtable,
 
-    pub fn append(s: *@This(), node: *FsNode) callconv(.c) FsResult(void) {
+    pub fn append(s: *@This(), node: *FsNode) callconv(.c) Result(void) {
         if (s.ctx == null) return .err(.nullContext);
 
         return s.vtable.append_node(s.ctx.?, node);
     }
-    pub fn branch(s: *@This(), path: [*:0]const u8) callconv(.c) FsResult(*FsNode) {
+    pub fn branch(s: *@This(), path: [*:0]const u8) callconv(.c) Result(*FsNode) {
         if (s.ctx == null) return .err(.nullContext);
 
         if (!s.iterable) return .err(.notIterable);
@@ -53,7 +56,7 @@ pub const FsNode = extern struct {
         const i: usize = std.mem.indexOf(u8, pathslice, "/") orelse pathslice.len;
         const j: usize = std.mem.indexOf(u8, pathslice[i..], "/") orelse pathslice.len;
 
-        var iterator = s.get_iterator().val;
+        var iterator = s.get_iterator().value;
         
         var q: *FsNode = undefined;
         while (iterator.next()) |node| {
@@ -64,16 +67,16 @@ pub const FsNode = extern struct {
         }
 
         // If last item in path
-        if (j == pathslice.len) return .ret(q);
+        if (j == pathslice.len) return .val(q);
 
         // If not, delegate the rest of the job further
         return q.branch(path[j..]);
     }
-    pub fn get_iterator(s: *@This()) callconv(.c) FsResult(NodeIterator) {
+    pub fn get_iterator(s: *@This()) callconv(.c) Result(NodeIterator) {
         if (s.ctx == null) return .err(.nullContext);
         if (!s.iterable) return .err(.notIterable);
 
-        return .ret(.{ .node = s });
+        return .val(.{ .node = s });
     }
 };
 
@@ -84,46 +87,9 @@ pub const NodeIterator = extern struct {
     pub fn next(s: *@This()) ?*FsNode {
         var ret = s.node.vtable.get_child(s.node.ctx.?, s.index);
         s.index += 1;
-        return if (ret.isok()) ret.val else null;
+        return if (ret.unwrap()) |v| v else null;
     }
     pub fn reset(s: *@This()) void {
         s.index = 0;
     }
-};
-
-pub fn FsResult(T: type) type {
-    return extern struct {
-        @"error": FsError,
-        val: T,
-
-        pub fn ret(v: T) FsResult(T) {
-            return .{
-                .@"error" = .noerror,
-                .val = v
-            };
-        }
-        pub fn retvoid() FsResult(void) {
-            return .{
-                .@"error" = .noerror,
-                .val = undefined
-            };
-        }
-        pub fn err(e: FsError) FsResult(T) {
-            return .{
-                .@"error" = e,
-                .val = undefined
-            };
-        }
-
-        pub fn isok(s: *const @This()) bool {
-            return s.@"error" == .noerror;
-        }
-    };
-}
-pub const FsError = enum(usize) {
-    noerror = 0,
-
-    nullContext = 1,
-    notIterable = 2,
-    outOfBounds = 3,
 };
