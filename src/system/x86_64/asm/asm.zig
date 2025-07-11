@@ -5,5 +5,5 @@ pub const cpuid = @import("cpuid.zig");
 pub inline fn halt() noreturn {
     flags.clear_interrupt();
     asm volatile("hlt");
-    unreachable;
+    while (true) {}
 }

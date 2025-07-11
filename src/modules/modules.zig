@@ -2,24 +2,31 @@ const std = @import("std");
 const root = @import("root");
 const system = root.system;
 const debug = root.debug;
+const interop = root.interop;
+const utils = root.utils;
+
+const Result = interop.Result;
+const Guid = utils.Guid;
+
 const allocator = root.mem.heap.kernel_buddy_allocator;
 
-const ModulesList = std.ArrayList(*Module);
-var modules_list: ModulesList = undefined;
-var unitialized_modules_list: ModulesList = undefined;
+var modules_map: std.AutoArrayHashMapUnmanaged(u128, Module) = .empty;
+var unitialized_list: std.ArrayListUnmanaged(u128) = .empty;
 
 pub fn init() void {
     debug.err(" ## Setting up modules service...\n", .{});
-
-    modules_list = ModulesList.init(allocator);
-    unitialized_modules_list = ModulesList.init(allocator);
 }
 
 pub fn lsmodules() void {
     debug.print("Listing active modules:\n", .{});
-    for (modules_list.items) |i| {
-        debug.print("{s} {s} by {s} ({s} liscence) - {s}\n", .{ i.name, i.version, i.author, i.license, @tagName(i.status) });
+    for (modules_map.values()) |i| {
+        debug.print("{} - {s} {s} by {s} ({s} liscence) - {s}\n", .{ i.uuid, i.name, i.version, i.author, i.license, @tagName(i.status) });
     }
+}
+
+
+pub inline fn get_module_by_uuid(uuid: Guid) ?*Module {
+    return modules_map.getPtr(@bitCast(uuid));
 }
 
 
@@ -28,82 +35,80 @@ pub export fn register_module(
     version: [*:0]const u8,
     author: [*:0]const u8,
     license: [*:0]const u8,
+    uuid: u128,
 
     init_func:   *const fn () callconv(.c) bool,
     deinit_func: *const fn () callconv(.c) void,
-) bool {
+) Result(void) {
     register_module_internal(
-        name,
-        version,
-        author,
-        license,
+        std.mem.sliceTo(name, 0),
+        std.mem.sliceTo(version, 0),
+        std.mem.sliceTo(author, 0),
+        std.mem.sliceTo(license, 0),
+        uuid,
 
         init_func,
         deinit_func,
-    ) catch |err| {
-        debug.err("Error registering module '{s}': {s}\n", .{name, @errorName(err)});
-        return false;
+    ) catch |err| return switch (err) {
+        error.ModuleAlreadyRegistered => .err(.nameAlreadyUsed),
+        else => .err(.unexpected)
     };
-    return true;
+    return .retvoid();
 }
 fn register_module_internal(
-    name: [*:0]const u8,
-    version: [*:0]const u8,
-    author: [*:0]const u8,
-    license: [*:0]const u8,
+    name: []const u8,
+    version: []const u8,
+    author: []const u8,
+    license: []const u8,
+    uuid: u128,
 
     init_func:   *const fn () callconv(.c) bool,
     deinit_func: *const fn () callconv(.c) void,
 ) !void {
 
-    const name_slice = std.mem.sliceTo(name, 0);
-    const version_slice = std.mem.sliceTo(version, 0);
-    const author_slice = std.mem.sliceTo(author, 0);
-    const license_slice = std.mem.sliceTo(license, 0);
+    // Check if the module is already registered
+    if (modules_map.contains(uuid)) {
+        debug.err("Module '{s}' is already registered.\n", .{name});
+        return error.ModuleAlreadyRegistered;
+    }
 
-    const module = try allocator.create(Module);
-    errdefer allocator.destroy(module);
+    const namecopy = try allocator.dupeZ(u8, name);
+    errdefer allocator.free(namecopy);
+    const vercopy = try allocator.dupeZ(u8, version);
+    errdefer allocator.free(vercopy);
+    const autcopy = try allocator.dupeZ(u8, author);
+    errdefer allocator.free(autcopy);
+    const liccopy = try allocator.dupeZ(u8, license);
+    errdefer allocator.free(liccopy);
 
-    module.* = .{
-        .name = name_slice,
-        .version = version_slice,
-        .author = author_slice,
-        .license = license_slice,
-        .guid = root.utils.Guid.new(),
+    modules_map.put(allocator, @bitCast(uuid), .{
+        .name = namecopy,
+        .version = vercopy,
+        .author = autcopy,
+        .license = liccopy,
+        .uuid = root.utils.Guid.fromInt(uuid),
 
         .init = init_func,
         .deinit = deinit_func,
 
         .status = ModuleStatus.Waiting,
         .permissions = undefined,
-    };
-
-    // Check if the module is already registered
-    for (modules_list.items) |existing_module| {
-        if (std.mem.eql(u8, existing_module.name, module.name)) {
-            debug.err("Module '{s}' ver. {s} is already registered.\n", .{module.name, module.version});
-            return error.ModuleAlreadyRegistered;
-        }
-    }
-
-    // Add the module to the lists
-    try modules_list.append(module);
-    errdefer _ = modules_list.pop();
-    try unitialized_modules_list.append(module);
+    }) catch @panic("OOM");
+    unitialized_list.append(allocator, uuid) catch @panic("OOM");
 
     // TODO some logic to wake up adam
 
 }
 
 pub inline fn has_waiting_modules() bool {
-    return unitialized_modules_list.items.len > 0;
+    return unitialized_list.items.len > 0;
 }
 pub inline fn get_next_waiting_module() ?*Module {
-    if (unitialized_modules_list.items.len == 0) {
+    if (unitialized_list.items.len == 0) {
         debug.err("No waiting modules to pop.\n", .{});
         return null;
     }
-    return unitialized_modules_list.orderedRemove(0);
+    return modules_map.getPtr(unitialized_list.orderedRemove(0));
 }
 
 pub const Module = struct {
@@ -111,7 +116,7 @@ pub const Module = struct {
     version: []const u8,
     author: []const u8,
     license: []const u8,
-    guid: root.utils.Guid,
+    uuid: root.utils.Guid,
 
     init:   *const fn () callconv(.c) bool,
     deinit: *const fn () callconv(.c) void,

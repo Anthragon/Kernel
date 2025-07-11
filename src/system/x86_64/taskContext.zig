@@ -71,10 +71,15 @@ pub const TaskContext = extern struct {
     pub inline fn set_instruction_ptr(s: *@This(), value: usize) void {
         s.rip = @as(u64, value);
     }
+    pub inline fn get_instruction_ptr(s: *@This()) usize {
+        return s.rip;
+    }
+
     pub inline fn set_stack_ptr(s: *@This(), value: usize) void {
         s.rsp = @as(u64, value);
         s.rbp = @as(u64, value);
     }
+
     pub fn set_arg(s: *@This(), value: usize, arg: usize) void {
         switch (arg) {
             0 => s.rdi = @as(u64, value),
@@ -97,6 +102,7 @@ pub const TaskContext = extern struct {
             else => unreachable, // Implement it if needed
         };
     }
+
     pub inline fn get_return(s: *@This()) usize {
         return s.rax;
     }

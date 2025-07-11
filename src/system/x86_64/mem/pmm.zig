@@ -54,9 +54,6 @@ pub fn setup() void {
     hhdm_offset = boot_info.hhdm_base_offset;
     const mmap = boot_info.memory_map;
 
-    debug.err("\nphys base: {X: >16}\nvirt base: {X: >16}\n\n", .{ boot_info.kernel_base_physical, boot_info.kernel_base_virtual });
-    kernel_virt_start = std.mem.alignBackward(usize, boot_info.kernel_base_virtual, page_size);
-
     for (mmap) |i| {
 
         if (i.type == .usable) {
@@ -114,7 +111,7 @@ pub fn setup() void {
         
             kernel_page_start = i.base / page_size;
             kernel_page_end = kernel_page_start + i.size / page_size;
-            kernel_virt_end = std.mem.alignForward(usize, kernel_virt_start + i.size, page_size);
+
         } else {
             debug.err("skipping {X} .. {X} ({s})\n", .{ i.base, i.base + i.size, @tagName(i.type)});
             continue;
@@ -145,22 +142,30 @@ pub fn setup() void {
     // Generating the definitive memory map
     _ = paging.create_new_map();
 
-    // marking the kernel range
-    const kernel_phys = boot_info.kernel_base_physical;
-    const kernel_virt = boot_info.kernel_base_virtual;
-    const kernel_len = (kernel_page_end - kernel_page_start) * page_size;
-
     const phys_mapping_range_bits = @min(paging.features.maxphyaddr, 39);
 
+    // marking the kernel range
+    const kernel_phys = boot_info.kernel_base_physical;
+    const kernel_len = (kernel_page_end - kernel_page_start) * page_size;
+
+    kernel_virt_start = std.mem.alignBackward(usize, boot_info.kernel_base_virtual, page_size);
+    kernel_virt_end = std.mem.alignForward(usize, @intFromPtr(@extern(*u64, .{ .name = "__kernel_end__" })), page_size);
+
+    debug.err("\nphys base: {X: >16}", .{ kernel_phys });
+    debug.err("\nphys end:  {X: >16}", .{ kernel_phys + kernel_len });
+    debug.err("\nvirt base: {X: >16}", .{kernel_virt_start });
+    debug.err("\nvirt end:  {X: >16}\n", .{ kernel_virt_end });
 
     // Creating identity map
     const idmap_len = std.math.shl(usize, 1, phys_mapping_range_bits);
-    debug.err("\nmapping range of {d} bits ({} pages, {s})\n", .{phys_mapping_range_bits, idmap_len, std.fmt.fmtIntSizeBin(idmap_len * 4096)});
+    debug.err("\nMarking identity map {x}..{x}...\n", .{hhdm_offset, hhdm_offset + idmap_len});
     paging.map_range(0, hhdm_offset, idmap_len, atributes_ROX_privileged_fixed) catch unreachable;
 
     // Mapping kernel
-    debug.err("\nmapping kernel range {X} .. {X} to {X}\n", .{kernel_phys, kernel_phys + kernel_len, kernel_virt});
-    paging.map_range(kernel_phys, kernel_virt, kernel_len, atributes_ROX_privileged_fixed) catch unreachable;
+    debug.err("Marking kernel...\n", .{});
+    debug.err("\nmapping kernel range {x} .. {x} ({} pages) to {x}..{x}\n", .{
+        kernel_phys, kernel_phys + kernel_len, kernel_len / page_size, kernel_virt_start, kernel_virt_end});
+    paging.map_range(kernel_phys, kernel_virt_start, kernel_len, atributes_ROX_privileged_fixed) catch unreachable;
 
     debug.err("Commiting new map to CR3...\n", .{});
     paging.commit_map();
@@ -307,7 +312,6 @@ pub fn get_single_page(status: BlockStatus) *anyopaque {
         }
     }
 
-    //debug.print("allocated page {} (0x{X})\n", .{ptr_page, ptr_page * 4096});
     return @ptrFromInt(ptr_page * 4096 + hhdm_offset);
 }
 pub fn get_multiple_pages(len: usize, status: BlockStatus) ?*anyopaque {
@@ -376,7 +380,6 @@ pub fn get_multiple_pages(len: usize, status: BlockStatus) ?*anyopaque {
         }
     }
 
-    //debug.print("allocated {} pages {} (0x{X})\n", .{len, ptr_page, ptr_page * 4096});
     return @ptrFromInt(ptr_page * 4096 + hhdm_offset);
 }
 

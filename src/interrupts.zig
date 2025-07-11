@@ -15,29 +15,33 @@ pub fn install_interrupts() void {
     interrupts.set_vector(0x5, &bound_range_exceeded, .kernel);
     interrupts.set_vector(0x6, &invalid_opcode, .kernel);
 
+    interrupts.set_vector(0x8, &double_fault, .kernel);
+
     interrupts.set_vector(0x0d, &general_protection_fault, .kernel);
     interrupts.set_vector(0x0e, &page_fault, .kernel);
 
 }
 
-fn division_error(_: *TaskContext) void {
-    debug.print("(#DE) Exception (see stderr)!\n", .{});
-    debug.err("(#DE) Division Exception!\n", .{});
+fn division_error(frame: *TaskContext) void {
+    debug.err("\n(#DE) Division Exception!\n", .{});
     debug.err("(#DE) An attempt to divide by 0 was made.\n", .{});
+
+    root.panic("Division Error", null, frame.get_instruction_ptr());
 }
-fn overflow_error(_: *TaskContext) void {
-    debug.print("(#OF) Exception (see stderr)!\n", .{});
-    debug.err("(#OF) Overflow Exception!\n", .{});
+fn overflow_error(frame: *TaskContext) void {
+    debug.err("\n(#OF) Overflow Exception!\n", .{});
     debug.err("(#OF) INTO check failed.\n", .{});
+
+    root.panic("Overflow Error", null, frame.get_instruction_ptr());
 }
-fn bound_range_exceeded(_: *TaskContext) void {
-    debug.print("(#BR) Exception (see stderr)!\n", .{});
-    debug.err("(#BR) Bound Range Exceeded Exception!\n", .{});
+fn bound_range_exceeded(frame: *TaskContext) void {
+    debug.err("\n(#BR) Bound Range Exceeded Exception!\n", .{});
     debug.err("(#BR) Index was out of bounds.\n", .{});
+
+    root.panic("Bound Range Exceeded", null, frame.get_instruction_ptr());
 }
 fn invalid_opcode(frame: *TaskContext) void {
-    debug.print("(#UD) Exception (see stderr)!\n", .{});
-    debug.err("(#UD) Invalid OpCode Exception!\n", .{});
+    debug.err("\n(#UD) Invalid OpCode Exception!\n", .{});
     debug.err("(#UD) Attempted to execute an invalid opcode.\n", .{});
 
     // Shows system-dependent error messages here
@@ -53,20 +57,23 @@ fn invalid_opcode(frame: *TaskContext) void {
         },
         else => unreachable
     }
+
+    root.panic("Invalid OpCode", null, frame.get_instruction_ptr());
 }
 
 fn double_fault(frame: *TaskContext) void {
-    debug.print("(#DF) Exception (see stderr)!\n", .{});
-    debug.err("(#DF) Double Fault Exception!\n", .{});
     debug.err("(#DF) The same exception happened two times.\n", .{});
-    debug.err("(#DF) Dumping frame:\n", .{});
+
+    debug.err("\n(#DF) Dumping frame:\n", .{});
     debug.err("{}\n", .{ frame });
+
+    root.panic("Double fault", null, frame.get_instruction_ptr());
+    sys.assembly.halt();
 }
 
 fn general_protection_fault(frame: *TaskContext) void {
 
-    debug.print("(#GP) Exception (see stderr)!\n", .{});
-    debug.err("(#GP) General Protection Exception!\n", .{});
+    debug.err("\n(#GP) General Protection Exception!\n", .{});
 
     // Shows system-dependent error messages here
     switch (sys.arch) {
@@ -89,12 +96,12 @@ fn general_protection_fault(frame: *TaskContext) void {
     debug.err("(#GP) Dumping frame:\n", .{});
     debug.err("{}\n", .{ frame });
 
-    while (true) {}
+    root.panic("General Protection fault", null, frame.get_instruction_ptr());
+    sys.assembly.halt();
 }
 fn page_fault(frame: *TaskContext) void {
 
-    debug.print("(#PF) Exception (see stderr)!\n", .{});
-    debug.err("(#PF) Page Fault Exception!\n", .{});
+    debug.err("\n(#PF) Page Fault Exception!\n", .{});
 
     // Shows system-dependent error messages here
     switch (sys.arch) {
@@ -124,7 +131,8 @@ fn page_fault(frame: *TaskContext) void {
     debug.err("\n(#PF) Dumping frame:\n", .{});
     debug.err("{}\n", .{ frame });
 
-    while (true) {}
+    root.panic("Page fault", null, frame.get_instruction_ptr());
+    sys.assembly.halt();
 }
 
 

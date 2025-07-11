@@ -76,22 +76,25 @@ pub fn main(_boot_info: BootInfo) noreturn {
     devices.init();       
     threading.init();
     system.time.init();
+    debug.err(" # All services ready!\n", .{});
 
     // Setting up Adam
+    debug.err("# Registring adam process and trask...\n", .{});
     const system_proc = threading.procman.get_process_from_pid(0).?;
     _ = system_proc.create_task(
         @import("adam.zig")._start,
         @as([*]u8, @ptrFromInt(boot_info.kernel_stack_pointer_base - 0x1000))[0..0x1000],
         255
     ) catch unreachable;
+    debug.err(" # Adam is ready!\n", .{});
 
     // Everything is ready, debug routine and them
     // start the scheduler
     debug.print("\nDumping random data to see if everything is right:\n", .{});
 
+    debug.print("\n", .{});
     debug.print("Time: {} ({})\n", .{ system.time.get_datetime(), system.time.timestamp() });
     debug.print("\n", .{});
-    //system.vmm.lsmemblocks();
     devices.pci.lspci();
     debug.print("\n", .{});
     auth.lsusers();
@@ -99,16 +102,16 @@ pub fn main(_boot_info: BootInfo) noreturn {
     threading.procman.lsproc();
     debug.print("\n", .{});
     threading.procman.lstasks();
-    debug.print("\n", .{});
 
     debug.print("\nSetup finished. Giving control to the scheduler...\n", .{});
     system.finalize() catch @panic("System initialization could not be finalized!");
 
+    debug.err("# Giving control to the scheduer...\n", .{});
     while (true) system.assembly.flags.set_interrupt();
     unreachable;
 }
 
-/// Returns a copy of information from the
+/// Returns a copy of the information given by the
 /// bootloader
 pub inline fn get_boot_info() BootInfo {
     return boot_info;
@@ -117,14 +120,20 @@ pub inline fn get_boot_info() BootInfo {
 var panicked: bool = false;
 pub fn panic(msg: []const u8, _: ?*std.builtin.StackTrace, return_address: ?usize) noreturn {
     if (panicked) {
-        debug.print("Double panic!\n", .{});
+        debug.print("\n", .{});
+        debug.print("!--------------------------------------------------!\n", .{});
+        debug.print("!                   DOUBLE PANIC                   !\n", .{});
+        debug.print("!--------------------------------------------------!\n", .{});
+        debug.print("\nError: {s}\n\n", .{msg});
         system.assembly.halt();
     }
+
     panicked = true;
 
-    debug.print("\n!--------------------------------------------------!\n", .{});
-    debug.print("\n!                   KERNEL PANIC                   !\n", .{});
-    debug.print("\n!--------------------------------------------------!\n", .{});
+    debug.print("\n", .{});
+    debug.print("!--------------------------------------------------!\n", .{});
+    debug.print("!                   KERNEL PANIC                   !\n", .{});
+    debug.print("!--------------------------------------------------!\n", .{});
     debug.print("\nError: {s}\n\n", .{msg});
 
     var dalloc = mem.vmm.get_debug_allocator_controller();

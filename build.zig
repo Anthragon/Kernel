@@ -54,6 +54,7 @@ pub fn build(b: *std.Build) void {
     };
     kernel_mod.omit_frame_pointer = false;
     kernel_mod.strip = false;
+    kernel_mod.single_threaded = true;
 
 
     // TODO add dependences dinamically

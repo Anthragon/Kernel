@@ -125,10 +125,10 @@ pub export fn pci_device_probe(query: [*]const PciDeviceQuery, func: DeviceProbe
 }
 
 
-
 pub fn lspci() void {
 
     debug.print("Listing PCI devices:\n", .{});
+    
     for (devList.items) |i| {
         debug.print(
             "{X:0>2}:{X:0>2}.{X:0>1} [{X:0>2}:{X:0>2}] {s}: [{X:0>4}] {s} - [{X:0>4}] {s}\n",
@@ -141,8 +141,10 @@ pub fn lspci() void {
             i.addr.base_class().read(),
             i.addr.sub_class().read(),
             i.type_str,
+
             i.addr.vendor_id().read(),
             i.vendor_str,
+
             i.addr.device_id().read(),
             i.name_str
         });

@@ -35,7 +35,7 @@ creation_timestamp: u64,
 // TODO allocated memory data
 
 pub fn create_task(s: *@This(), entry: TaskEntry, stack: ?[]u8, priority: u8) !*Task {
-    errdefer |err| debug.err("Failed to create task: {s}\n", .{@errorName(err)});
+    errdefer |err| debug.err("!!! Failed to create task: {s}\n", .{@errorName(err)});
 
     const tid: usize = b: {
 
@@ -55,6 +55,7 @@ pub fn create_task(s: *@This(), entry: TaskEntry, stack: ?[]u8, priority: u8) !*
 
     const ntask = try allocator.create(Task);
     errdefer allocator.destroy(ntask);
+
     ntask.* = .{
         .task_id = @intCast(tid),
         .priority = priority,

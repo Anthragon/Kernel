@@ -17,7 +17,7 @@ const builtin_modules = .{
 pub fn _start(args: ?*anyopaque) callconv(.c) noreturn {
     _ = args;
 
-    debug.print("Hello, Adam!\n", .{});
+    debug.print("\nHello, Adam!\n", .{});
 
     // Running the build-in core drivers
 
@@ -30,14 +30,19 @@ pub fn _start(args: ?*anyopaque) callconv(.c) noreturn {
             mod.module_version,
             mod.module_author,
             mod.module_liscence,
+            mod.module_uuid,
 
             mod.init,
             mod.deinit,
         );
     }
 
+    debug.print("{} built in modules registred!\n", .{ builtin_modules.len });
+
     threading.procman.lstasks();
     modules.lsmodules();
+
+    debug.print("Entering in sleep mode... zzz\n\n", .{});
 
     // Adam should never return as it indicates
     // that the system is alive

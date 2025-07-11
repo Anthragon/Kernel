@@ -219,18 +219,18 @@ pub fn map_single_page(phys_base: usize, virt_base: usize, comptime size: usize,
 }
 pub fn map_range(phys_base: usize, virt_base: usize, length: usize, attributes: Attributes) MMapError!void {
 
-    debug.err("mapping range ${X}..${X} -> ${X}..${X} ({s}{s}{s}{s}{s}{s})\n",
-    .{
-        phys_base, phys_base + length,
-        virt_base, virt_base + length,
+    // debug.err("mapping range ${X}..${X} -> ${X}..${X} ({s}{s}{s}{s}{s}{s})\n",
+    // .{
+    //     phys_base, phys_base + length,
+    //     virt_base, virt_base + length,
 
-        if (attributes.read) "R" else "-",
-        if (attributes.write) "W" else "-",
-        if (attributes.execute) "X" else "-",
-        if (attributes.privileged) "P" else "-",
-        if (attributes.disable_cache) "-" else "C",
-        if (attributes.lock) "L" else "-"
-    });
+    //     if (attributes.read) "R" else "-",
+    //     if (attributes.write) "W" else "-",
+    //     if (attributes.execute) "X" else "-",
+    //     if (attributes.privileged) "P" else "-",
+    //     if (attributes.disable_cache) "-" else "C",
+    //     if (attributes.lock) "L" else "-"
+    // });
 
     var pa = phys_base;
     var la = virt_base;

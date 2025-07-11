@@ -3,15 +3,16 @@ pub const Error = enum(usize) {
     noerror = 0,
 
     // Misc
-    nullContext = 1,
+    unexpected = 1,
+    nullContext = 2,
 
     // Indexing
-    notIterable = 2,
-    outOfBounds = 3,
+    notIterable = 3,
+    outOfBounds = 4,
 
     // Naming
-    nameAlreadyUsed = 4,
-    nameNotFound = 5,
-    invalidName = 6
+    nameAlreadyUsed = 5,
+    nameNotFound = 6,
+    invalidName = 7
 
 };

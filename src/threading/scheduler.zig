@@ -6,18 +6,17 @@ const allocator = root.mem.heap.kernel_buddy_allocator;
 
 const Task = root.threading.Task;
 const TaskContext = sys.TaskContext;
-const TaskList = std.ArrayList(*Task);
 
-var task_list: TaskList = undefined;
+var task_list: std.ArrayListUnmanaged(*Task) = undefined;
 var current_task: ?*Task = null;
 var next_index: usize = 0;
 
 pub fn init() void {
-    task_list = TaskList.init(allocator);
+
 }
 
 pub fn append_task(t: *Task) void {
-    task_list.append(t) catch @panic("OOM");
+    task_list.append(allocator, t) catch @panic("OOM");
     root.threading.procman.lstasks();
 }
 

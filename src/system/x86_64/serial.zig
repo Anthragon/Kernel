@@ -69,7 +69,5 @@ pub inline fn uart_putchar(dev: u8, char: u8) void {
 }
 
 pub inline fn uart_puts(dev: u8, str: []const u8) void {
-    for (str) |char| {
-        uart_putchar(dev, char);
-    }
+    for (str) |char| uart_putchar(dev, char);
 }
