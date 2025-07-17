@@ -17,8 +17,6 @@ pub const fs = @import("fs/fs.zig");
 pub const devices = @import("devices/devices.zig");
 /// Users, authentication and permissions
 pub const auth = @import("auth/auth.zig");
-/// Events service
-pub const event = @import("event/event.zig");
 /// Processes, tasks and execution
 pub const threading = @import("threading/threading.zig");
 /// Modules and drivers management
@@ -68,8 +66,7 @@ pub fn main(_boot_info: BootInfo) noreturn {
  
     debug.err("\n# Initializing OS specific\n", .{});
 
-    event.init();   // Event must init first!
-    modules.init(); // Modules must init second!
+    modules.init();
 
     fs.init();
     auth.init();   
