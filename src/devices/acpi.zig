@@ -18,7 +18,7 @@ pub fn init() void {
     // for (0..table.len()) |i| {
         
     //     const t = table.get_ptr(i);
-    //     debug.print("{} - rev {} - {s} - checksum {}\n", .{i, t.header.revision, t.header.signature, t.header.do_checksum()});
+    //     std.log.info("{} - rev {} - {s} - checksum {}\n", .{i, t.header.revision, t.header.signature, t.header.do_checksum()});
 
     // }
 

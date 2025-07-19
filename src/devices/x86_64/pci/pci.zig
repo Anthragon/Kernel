@@ -14,9 +14,9 @@ const DeviceList = pci_global.DeviceList;
 
 pub fn list_devices(list: *DeviceList) !void {
 
-    debug.print("Scanning bus root...\n", .{});
+    std.log.info("Scanning bus root...\n", .{});
     bus_scan(0, list);
-    debug.print("Scan complete!\n", .{});
+    std.log.info("Scan complete!\n", .{});
 
 }
 
@@ -32,13 +32,13 @@ pub fn device_scan(bus: u8, device: u5, list: *DeviceList) void {
 
     if (nullfunc.header_type().read() == 0xFFFF) return;
 
-    function_scan(nullfunc, list) catch |err| debug.err("Could not list device: {s}\n", .{@errorName(err)});
+    function_scan(nullfunc, list) catch |err| std.log.debug("Could not list device: {s}\n", .{@errorName(err)});
 
     if (nullfunc.header_type().read() & 0x80 == 0) return;
 
     inline for (0..((1 << 3) - 1)) |function| {
         function_scan(.{ .bus = bus, .device = device, .function = @intCast(function + 1) }, list)
-            catch |err| debug.err("Could not list device: {s}\n", .{@errorName(err)});
+            catch |err| std.log.debug("Could not list device: {s}\n", .{@errorName(err)});
     }
 }
 
@@ -54,17 +54,17 @@ pub fn function_scan(addr: Addr, list: *DeviceList) !void {
         var still_unrecognized = false;
 
         switch (addr.sub_class().read()) {
-            0x00 => debug.err("Host bridge (ignoring)\n", .{}),
+            0x00 => std.log.debug("Host bridge (ignoring)\n", .{}),
             0x04 => {
-                debug.err("PCI-to-PCI bridge", .{});
+                std.log.debug("PCI-to-PCI bridge", .{});
                 if ((addr.header_type().read() & 0x7F) != 0x01) {
 
-                    debug.err(" (Not PCI-to-PCI bridge header type!)\n", .{});
+                    std.log.debug(" (Not PCI-to-PCI bridge header type!)\n", .{});
 
                 } else {
 
                     const secondary_bus = addr.secondary_bus().read();
-                    debug.err(", recursively scanning bus {0X}\n", .{secondary_bus});
+                    std.log.debug(", recursively scanning bus {0X}\n", .{secondary_bus});
                     bus_scan(secondary_bus, list);
                     
                 }

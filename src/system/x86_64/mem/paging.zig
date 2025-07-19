@@ -51,14 +51,14 @@ pub fn load_commited_map() void {
     var cr3_val: Cr3Value = ctrl_regs.read(.cr3);
     const phys = cr3_val.get_phys_addr();
     current_map = pmm.PtrFromPhys(Table(PML45), phys);
-    debug.print("Loaded commited page table 0x{X} ({X})\n", .{phys, @intFromPtr(current_map)});
+    std.log.info("Loaded commited page table 0x{X} ({X})\n", .{phys, @intFromPtr(current_map)});
 }
 // Active the currently loaded memory map
 pub fn commit_map() void {
     var cr3_val: Cr3Value = ctrl_regs.read(.cr3);
     cr3_val.set_phys_addr(pmm.physFromPtr(current_map.?));
     ctrl_regs.write(.cr3, cr3_val);
-    debug.err("Comitted page table at 0x{X} ({X})\n", .{cr3_val.get_phys_addr(), @as(usize, @truncate(pmm.physFromPtr(current_map.?) >> 12))});
+    std.log.debug("Comitted page table at 0x{X} ({X})\n", .{cr3_val.get_phys_addr(), @as(usize, @truncate(pmm.physFromPtr(current_map.?) >> 12))});
 }
 
 // Creates a new empty memory map
@@ -68,7 +68,7 @@ pub fn create_new_map() MapPtr {
 
     for (0 .. mmap.len) |i| mmap[i] = @bitCast(@as(usize, 0));
 
-    debug.err("Map created at address {X}\n", .{@intFromPtr(mmap)});
+    std.log.debug("Map created at address {X}\n", .{@intFromPtr(mmap)});
     current_map = mmap;
     return mmap;
 }
@@ -76,24 +76,24 @@ pub fn create_new_map() MapPtr {
 // Debug prints the selected memory map (lots of logs)
 pub fn lsmemmap() void {
 
-    debug.print("lsmemmap ({X}):\n", .{pmm.physFromPtr(current_map.?)});
+    std.log.info("lsmemmap ({X}):\n", .{pmm.physFromPtr(current_map.?)});
 
     for (current_map.?, 0..) |*cmap, i| if (cmap.present) {
-        debug.print("PML4E {: >3} - {s11}{x:0>12} - {}\n", .{i, if (i < 256) "0000" else "ffff", i<<39, cmap});
+        std.log.info("PML4E {: >3} - {s11}{x:0>12} - {}\n", .{i, if (i < 256) "0000" else "ffff", i<<39, cmap});
 
         const page_dir_ptr: Table(PDPTE) = pmm.PtrFromPhys(Table(PDPTE), cmap.get_phys_addr());
         for (page_dir_ptr, 0..) |*pdp, j| if (pdp.present) {
-            debug.print("\tPDPTE {: >3} - {s11}{x:0>12} - {}\n", .{j, if (i < 256) "0000" else "ffff", (i<<39)|(j<<30), pdp});
+            std.log.info("\tPDPTE {: >3} - {s11}{x:0>12} - {}\n", .{j, if (i < 256) "0000" else "ffff", (i<<39)|(j<<30), pdp});
             if (pdp.is_gb_page) continue;
 
             const page_dir: Table(PDE) = pmm.PtrFromPhys(Table(PDE), pdp.get_phys_addr());
             for (page_dir, 0..) |*pd, k| if (pd.present) {
-                debug.print("\t\tPDPE  {: >3} - {s11}{x:0>12} - {}\n", .{k, if (i < 256) "0000" else "ffff", (i<<39)|(j<<30)|(k<<21), pd});
+                std.log.info("\t\tPDPE  {: >3} - {s11}{x:0>12} - {}\n", .{k, if (i < 256) "0000" else "ffff", (i<<39)|(j<<30)|(k<<21), pd});
                 if (pd.is_mb_page) continue;
 
                 const page_table: Table(PTE) = pmm.PtrFromPhys(Table(PTE), pd.get_phys_addr());
                 for (page_table, 0..) |*pt, l| if (pt.present) {
-                    debug.print("\t\t\tPTE   {: >3} - {s11}{x:0>12} - {}\n", .{l, if (i < 256) "0000" else "ffff", (i<<39)|(j<<30)|(k<<21)|(l<<12), pt});
+                    std.log.info("\t\t\tPTE   {: >3} - {s11}{x:0>12} - {}\n", .{l, if (i < 256) "0000" else "ffff", (i<<39)|(j<<30)|(k<<21)|(l<<12), pt});
                 };
             };
         };
@@ -219,7 +219,7 @@ pub fn map_single_page(phys_base: usize, virt_base: usize, comptime size: usize,
 }
 pub fn map_range(phys_base: usize, virt_base: usize, length: usize, attributes: Attributes) MMapError!void {
 
-    // debug.err("mapping range ${X}..${X} -> ${X}..${X} ({s}{s}{s}{s}{s}{s})\n",
+    // std.log.debug("mapping range ${X}..${X} -> ${X}..${X} ({s}{s}{s}{s}{s}{s})\n",
     // .{
     //     phys_base, phys_base + length,
     //     virt_base, virt_base + length,

@@ -17,7 +17,7 @@ const builtin_modules = .{
 pub fn _start(args: ?*anyopaque) callconv(.c) noreturn {
     _ = args;
 
-    debug.print("\nHello, Adam!\n", .{});
+    std.log.info("\nHello, Adam!\n", .{});
 
     // Running the build-in core drivers
 
@@ -37,12 +37,12 @@ pub fn _start(args: ?*anyopaque) callconv(.c) noreturn {
         );
     }
 
-    debug.print("{} built in modules registred!\n", .{ builtin_modules.len });
+    std.log.info("{} built in modules registred!\n", .{ builtin_modules.len });
 
     threading.procman.lstasks();
     modules.lsmodules();
 
-    debug.print("Entering in sleep mode... zzz\n\n", .{});
+    std.log.info("Entering in sleep mode... zzz\n\n", .{});
 
     // Adam should never return as it indicates
     // that the system is alive
@@ -53,19 +53,19 @@ pub fn _start(args: ?*anyopaque) callconv(.c) noreturn {
 
         if (modules.has_waiting_modules()) {
             const module = modules.get_next_waiting_module().?;
-            debug.print("Initializing module {s}...\n", .{module.name});
+            std.log.info("Initializing module {s}...\n", .{module.name});
 
             const res = module.init();
 
             if (res) {
-                debug.err("Module {s} initialized successfully!\n", .{module.name});
+                std.log.debug("Module {s} initialized successfully!\n", .{module.name});
                 module.status = .Active;
             } else {
-                debug.err("Module {s} failed to initialize!\n", .{module.name});
+                std.log.debug("Module {s} failed to initialize!\n", .{module.name});
                 module.status = .Failed;
             }
             
-            debug.print("Initialization done; Module {s} status: {s}\n", .{module.name, @tagName(module.status)});
+            std.log.info("Initialization done; Module {s} status: {s}\n", .{module.name, @tagName(module.status)});
         }
 
     }

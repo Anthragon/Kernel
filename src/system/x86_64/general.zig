@@ -1,3 +1,5 @@
+const std = @import("std");
+
 const serial = @import("serial.zig");
 const gdt = @import("globalDescriptorTable.zig");
 const idt = @import("interruptDescriptorTable.zig");
@@ -12,26 +14,26 @@ const debug = root.debug;
 pub fn init() !void {
 
     try serial.init();
-    debug.err("Serial initialized\n", .{});
+    std.log.debug("Serial initialized\n", .{});
 
     log_cpu_features();
 
-    debug.err("Installing GDT...\n", .{});
+    std.log.debug("Installing GDT...\n", .{});
     gdt.install();
-    debug.err("Installing IDT...\n", .{});
+    std.log.debug("Installing IDT...\n", .{});
     idt.install();
 
-    debug.err("Setting up Physical Memory Management...\n", .{});
+    std.log.debug("Setting up Physical Memory Management...\n", .{});
     pmm.setup();
     
 }
 
 pub fn finalize() !void {
     
-    debug.err("Setting up Programable Interrupt Controller...\n", .{});
+    std.log.debug("Setting up Programable Interrupt Controller...\n", .{});
     pic.setup();
 
-    debug.err("Setting up Programable Interval Timer...\n", .{});
+    std.log.debug("Setting up Programable Interval Timer...\n", .{});
     setup_timer_interval();
 
 }
@@ -42,7 +44,7 @@ fn log_cpu_features() void {
     const features_set_1 = cpu_features.features;
     const features_set_2 = cpu_features.features2;
 
-    debug.err(\\
+    std.log.debug(\\
     \\ CPU Features Set 1:
     \\    fpu:     {: <5}  vme:    {: <5}  dbg:     {: <5}  pse:     {: <5}
     \\    tsc:     {: <5}  msr:    {: <5}  pae:     {: <5}  mce:     {: <5}
@@ -63,7 +65,7 @@ fn log_cpu_features() void {
         features_set_1.sse2, features_set_1.ss, features_set_1.htt, features_set_1.tm1,
         features_set_1.ia64, features_set_1.pbe,
     });
-    debug.err(
+    std.log.debug(
     \\ CPU Features Set 2:
     \\    sse3:    {: <5}  pclmul: {: <5}  dtes64:  {: <5}  mon:    {: <5}
     \\    dscpl:   {: <5}  vmx:    {: <5}  smx:     {: <5}  est:    {: <5}

@@ -13,7 +13,7 @@ const Process = threading.Process;
 pub fn init() void {
 
     proc_list = allocator.alloc(?*threading.Process, 32) catch {
-        debug.print("Failed to allocate process list\n", .{});
+        std.log.info("Failed to allocate process list\n", .{});
         @panic("OOM");
     };
     @memset(proc_list, null);
@@ -66,11 +66,11 @@ pub fn get_process_from_pid(pid: usize) ?*Process {
 }
 
 pub fn lsproc() void {
-    debug.print("Listing processes:\n", .{});
+    std.log.info("Listing processes:\n", .{});
 
     for (proc_list) |proc| {
         if (proc) |p| {
-            debug.print("{: <2} - {s} (running by {s})\n", .{
+            std.log.info("{: <2} - {s} (running by {s})\n", .{
                 p.process_id,
                 p.name,
                 p.user.name,
@@ -80,7 +80,7 @@ pub fn lsproc() void {
 
 }
 pub fn lstasks() void {
-    debug.print("Listing tasks:\n", .{});
+    std.log.info("Listing tasks:\n", .{});
 
     for (proc_list) |proc| {
         if (proc) |p| {
@@ -88,7 +88,7 @@ pub fn lstasks() void {
             for (p.tasks) |task| {
                 if (task) |t| {
 
-                    debug.print("{X:0>4}:{X:0>4} - {s} - created at {}\n", .{
+                    std.log.info("{X:0>4}:{X:0>4} - {s} - created at {}\n", .{
                         p.process_id,
                         t.task_id,
                         @tagName(t.state),

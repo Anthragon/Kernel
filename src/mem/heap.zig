@@ -25,13 +25,13 @@ const PageAllocator = struct {
 
         const addr = kernel_page_allocator.alloc(pages, alignment);
 
-        debug.err("Page Allocator: Allocation requested: {} bytes, aligned to {} ({} pages) -> {x}\n", .{
+        std.log.debug("Page Allocator: Allocation requested: {} bytes, aligned to {} ({} pages) -> {x}\n", .{
             len, alignment.toByteUnits(), pages, if (addr == null) 0 else @intFromPtr(addr.?)});
 
         return addr;
     }
     fn page_allocator_resize(_: *anyopaque, memory: []u8, alignment: Alignment, new_len: usize, _: usize) bool {
-        debug.err("Page Allocator: Resize requested: {} bytes\n", .{ new_len });
+        std.log.debug("Page Allocator: Resize requested: {} bytes\n", .{ new_len });
 
         _ = memory;
         _ = alignment;
@@ -39,7 +39,7 @@ const PageAllocator = struct {
         @panic("PA resize");
     }
     fn page_allocator_remap(_: *anyopaque, memory: []u8, alignment: Alignment, new_len: usize, _: usize) ?[*]u8 {
-        debug.err("Page Allocator: Allocation requested: {} bytes\n", .{ new_len });
+        std.log.debug("Page Allocator: Allocation requested: {} bytes\n", .{ new_len });
 
         _ = memory;
         _ = alignment;
@@ -47,7 +47,7 @@ const PageAllocator = struct {
         @panic("PA remap");
     }
     fn page_allocator_free(_: *anyopaque, memory: []u8, _: Alignment, _: usize) void {
-        debug.err("Page Allocator: Free requested\n", .{});
+        std.log.debug("Page Allocator: Free requested\n", .{});
 
         kernel_page_allocator.free(memory);
     }

@@ -143,7 +143,7 @@ pub const get_datetime: fn () DateTime = internal.get_datetime;
 pub fn get_elapsed_ticks() usize { return elapsed_ticks; }
 
 pub fn init() void {
-    root.debug.err(" ## Setting up time service...\n", .{});
+    std.log.debug(" ## Setting up time service...\n", .{});
 
     // 0x20 = 32
     sys.interrupts.set_vector(0x20, timer_int, .kernel);

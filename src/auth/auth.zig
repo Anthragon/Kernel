@@ -36,7 +36,7 @@ pub const User = struct {
 };
 
 pub fn init() void {
-    root.debug.err(" ## Setting up auth service...\n", .{});
+    std.log.debug(" ## Setting up auth service...\n", .{});
 
     user_list = UserList.init(allocator);
 
@@ -101,10 +101,10 @@ pub fn get_user_by_index(index: usize) ?*User {
 
 pub fn lsusers() void {
     
-    debug.print("Listing users:\n", .{});
+    std.log.info("Listing users:\n", .{});
 
     for (user_list.items) |i| {
-        debug.print("{: <2} - {s} {s} {c}{c}{c}\n", .{
+        std.log.info("{: <2} - {s} {s} {c}{c}{c}\n", .{
 
             i.index,
             i.name,

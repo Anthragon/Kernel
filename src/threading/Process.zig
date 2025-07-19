@@ -35,7 +35,7 @@ creation_timestamp: u64,
 // TODO allocated memory data
 
 pub fn create_task(s: *@This(), entry: TaskEntry, stack: ?[]u8, priority: u8) !*Task {
-    errdefer |err| debug.err("!!! Failed to create task: {s}\n", .{@errorName(err)});
+    errdefer |err| std.log.debug("!!! Failed to create task: {s}\n", .{@errorName(err)});
 
     const tid: usize = b: {
 
@@ -97,7 +97,7 @@ pub fn create_task(s: *@This(), entry: TaskEntry, stack: ?[]u8, priority: u8) !*
 }
 
 fn enlarge_task_list(s: *@This()) !void {
-    errdefer |err| debug.err("Failed to enlarge task list: {s}\n", .{@errorName(err)});
+    errdefer |err| std.log.debug("Failed to enlarge task list: {s}\n", .{@errorName(err)});
 
     const new_size = @max(1, s.tasks.len + (std.math.divCeil(usize,s.tasks.len, 2) catch unreachable));
     const new_list = try allocator.alloc(?*Task, new_size);

@@ -48,7 +48,7 @@ pub fn init(fb: []u8, w: usize, h: usize, p: usize) void {
     char_width = @min(100, @divFloor(width - 60, font_width));
     char_height = @divFloor(height - 60, font_height);
 
-    debug.print(
+    std.log.info(
         \\
         \\Graphics library info:
         \\w:  {: >5} h:  {: >5} p:  {: >5}

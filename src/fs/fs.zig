@@ -17,7 +17,7 @@ var fs_dev: default_nodes.VirtualDirectory = undefined;
 
 
 pub fn init() void {
-    debug.err(" ## Setting up file system service...\n", .{});
+    std.log.debug(" ## Setting up file system service...\n", .{});
 
     //arena = .init(kernel_allocator);
     //allocator = arena.allocator();
@@ -42,7 +42,7 @@ pub fn lsdir(node: *FsNode) void {
 
     var iterator = node.get_iterator().val;
     while (iterator.next()) |n| {
-        debug.print("{s: <15} {s}\n", .{n.name, n.type});
+        std.log.info("{s: <15} {s}\n", .{n.name, n.type});
     }
 
 }
@@ -68,12 +68,12 @@ pub fn lsroot() void {
 
         if (last.iter.next()) |node| {
 
-            for (0..last.level) |_| debug.print("  ", .{});
+            for (0..last.level) |_| std.log.info("  ", .{});
 
             if (node.iterable) {
-                debug.print("{s: <20} {s}\n", .{ node.name, node.type });
+                std.log.info("{s: <20} {s}\n", .{ node.name, node.type });
             } else {
-                debug.print("{s: <20} {s}\n", .{ node.name, node.type });
+                std.log.info("{s: <20} {s}\n", .{ node.name, node.type });
             }
 
             if (node.iterable) {

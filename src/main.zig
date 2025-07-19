@@ -7,8 +7,6 @@ pub const boot = @import("boot/boot.zig");
 pub const system = @import("system/system.zig");
 /// Memory and Memory-management related
 pub const mem = @import("mem/mem.zig");
-/// Tools for debugguing and simple I/O
-pub const debug = @import("debug/debug.zig");
 /// Simple CPU-based graphics library
 pub const gl = @import("gl/gl.zig");
 /// SystemElva File System interface
@@ -22,6 +20,8 @@ pub const threading = @import("threading/threading.zig");
 /// Modules and drivers management
 pub const modules = @import("modules/modules.zig");
 
+/// Debug helper script
+pub const debug = @import("debug/debug.zig");
 /// Utils and help scripts
 pub const utils = @import("utils/utils.zig");
 /// Interoperability help scripts
@@ -62,9 +62,9 @@ pub fn main(_boot_info: BootInfo) noreturn {
     @import("interrupts.zig").install_interrupts();
 
     // Printing hello world
-    debug.print("\nHello, World from {s}!\n", .{ @tagName(system.arch) });
+    std.log.info("\nHello, World from {s}!\n", .{ @tagName(system.arch) });
  
-    debug.err("\n# Initializing OS specific\n", .{});
+    std.log.debug("\n# Initializing OS specific\n", .{});
 
     modules.init();
 
@@ -73,37 +73,42 @@ pub fn main(_boot_info: BootInfo) noreturn {
     devices.init();       
     threading.init();
     system.time.init();
-    debug.err(" # All services ready!\n", .{});
+    std.log.debug(" # All services ready!\n", .{});
 
     // Setting up Adam
-    debug.err("# Registring adam process and trask...\n", .{});
+    std.log.debug("# Registring adam process and task...\n", .{});
     const system_proc = threading.procman.get_process_from_pid(0).?;
     _ = system_proc.create_task(
         @import("adam.zig")._start,
         @as([*]u8, @ptrFromInt(boot_info.kernel_stack_pointer_base - 0x1000))[0..0x1000],
         255
     ) catch unreachable;
-    debug.err(" # Adam is ready!\n", .{});
+    std.log.debug(" # Adam is ready!\n", .{});
 
     // Everything is ready, debug routine and them
     // start the scheduler
-    debug.print("\nDumping random data to see if everything is right:\n", .{});
+    std.log.info("\nDumping random data to see if everything is right:\n", .{});
 
-    debug.print("\n", .{});
-    debug.print("Time: {} ({})\n", .{ system.time.get_datetime(), system.time.timestamp() });
-    debug.print("\n", .{});
+    std.log.info("\n", .{});
+    std.log.info("Time: {} ({})\n", .{ system.time.get_datetime(), system.time.timestamp() });
+    std.log.info("\n", .{});
     devices.pci.lspci();
-    debug.print("\n", .{});
+    std.log.info("\n", .{});
     auth.lsusers();
-    debug.print("\n", .{});
+    std.log.info("\n", .{});
     threading.procman.lsproc();
-    debug.print("\n", .{});
+    std.log.info("\n", .{});
     threading.procman.lstasks();
 
-    debug.print("\nSetup finished. Giving control to the scheduler...\n", .{});
+    std.log.info("\nSetup finished. Giving control to the scheduler...\n", .{});
     system.finalize() catch @panic("System initialization could not be finalized!");
 
-    debug.err("# Giving control to the scheduer...\n", .{});
+    std.log.debug("Testing a thing...", .{});
+    std.log.info("Testing a thing...", .{});
+    std.log.debug("Testing a thing...", .{});
+    std.log.warn("Testing a thing...", .{});
+
+    std.log.debug("# Giving control to the scheduer...\n", .{});
     while (true) system.assembly.flags.set_interrupt();
     unreachable;
 }
@@ -117,21 +122,21 @@ pub inline fn get_boot_info() BootInfo {
 var panicked: bool = false;
 pub fn panic(msg: []const u8, _: ?*std.builtin.StackTrace, return_address: ?usize) noreturn {
     if (panicked) {
-        debug.print("\n", .{});
-        debug.print("!--------------------------------------------------!\n", .{});
-        debug.print("!                   DOUBLE PANIC                   !\n", .{});
-        debug.print("!--------------------------------------------------!\n", .{});
-        debug.print("\nError: {s}\n\n", .{msg});
+        std.log.info("\n", .{});
+        std.log.info("!--------------------------------------------------!\n", .{});
+        std.log.info("!                   DOUBLE PANIC                   !\n", .{});
+        std.log.info("!--------------------------------------------------!\n", .{});
+        std.log.info("\nError: {s}\n\n", .{msg});
         system.assembly.halt();
     }
 
     panicked = true;
 
-    debug.print("\n", .{});
-    debug.print("!--------------------------------------------------!\n", .{});
-    debug.print("!                   KERNEL PANIC                   !\n", .{});
-    debug.print("!--------------------------------------------------!\n", .{});
-    debug.print("\nError: {s}\n\n", .{msg});
+    std.log.info("\n", .{});
+    std.log.info("!--------------------------------------------------!\n", .{});
+    std.log.info("!                   KERNEL PANIC                   !\n", .{});
+    std.log.info("!--------------------------------------------------!\n", .{});
+    std.log.info("\nError: {s}\n\n", .{msg});
 
     var dalloc = mem.vmm.get_debug_allocator_controller();
     if (dalloc != null) {
@@ -140,12 +145,12 @@ pub fn panic(msg: []const u8, _: ?*std.builtin.StackTrace, return_address: ?usiz
 
     if (return_address) |ret| {
 
-        debug.print("\nStack Trace in stderr\n", .{});
-        debug.err("\nStack Trace:\n", .{});
-        debug.dumpStackTrace(ret);
+        std.log.info("\nStack Trace in stderr\n", .{});
+        std.log.debug("\nStack Trace:\n", .{});
+        _ = ret;//debug.dumpStackTrace(ret);
 
     } else {
-        debug.print("No Stack Trace\n", .{});
+        std.log.info("No Stack Trace\n", .{});
     }
 
     panicked = false;

@@ -1,3 +1,4 @@
+const std = @import("std");
 const root = @import("root");
 const sys = root.system;
 const gdt = @import("globalDescriptorTable.zig");
@@ -49,7 +50,7 @@ fn load_idt(idt: *[256]Entry) void {
     var idtp = Pointer{ .limit = @intCast(@sizeOf(Entry) * 256 - 1), .base = @intFromPtr(idt) };
     asm volatile ("lidt (%[idtp])" :: [idtp] "r" (&idtp));
 
-    debug.err("IDT is now {X}\n", .{idtp.base});
+    std.log.debug("IDT is now {X}\n", .{idtp.base});
 }
 fn set_entry(self: *[256]Entry, num: u8, b: *const fn () callconv(.Naked) void, selector: u16, privilege: u2) void {
     const ie = &self[num];

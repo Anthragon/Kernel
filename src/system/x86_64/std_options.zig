@@ -14,7 +14,28 @@ pub const options: std.Options = .{
 };
 
 fn logFn(comptime message_level: std.log.Level, comptime scope: @TypeOf(.enum_literal), comptime format: []const u8, args: anytype) void {
-    root.debug.err(@tagName(scope) ++ " internal " ++ @tagName(message_level) ++ " >> " ++ format ++ "\n", args);
+    switch (scope) {
+        else => {
+            const fmt = @tagName(scope) ++ " " ++ @tagName(message_level) ++ " >> " ++ format ++ "\n";
+            root.debug.err(fmt, args);
+        },
+
+        .default => {
+            const fmt = format;      
+            switch (message_level) {
+                .info => root.debug.print(fmt, args),
+
+                .warn,
+                .debug => root.debug.err(fmt, args),
+
+                .err => {
+                    root.debug.print(fmt, args);
+                    root.debug.err(fmt, args);
+                },
+            }
+        }
+
+    }
 }
 
 fn criptoRandomSeed(buffer: []u8) void {

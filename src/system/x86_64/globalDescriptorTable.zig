@@ -179,7 +179,7 @@ pub inline fn get_ptr() Pointer {
 
 fn load_gdt(gdt: []Entry) void {
     var gdtp = Pointer{ .limit = @intCast(@sizeOf(Entry) * gdt.len - 1), .base = @intFromPtr(gdt.ptr) };
-    debug.err("GDT at {x}\n", .{@intFromPtr(gdt.ptr)});
+    std.log.debug("GDT at {x}\n", .{@intFromPtr(gdt.ptr)});
 
     // load gdt
     asm volatile ("lgdt (%[gdt])" : : [gdt] "r" (&gdtp), );

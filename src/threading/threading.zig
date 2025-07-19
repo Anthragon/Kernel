@@ -1,3 +1,4 @@
+const std = @import("std");
 const root = @import("root");
 const sys = root.system;
 
@@ -10,7 +11,7 @@ pub const procman = @import("process_manager.zig");
 pub const scheduler = @import("scheduler.zig");
 
 pub fn init() void {
-    root.debug.err(" ## Setting up threading service...\n", .{});
+    std.log.debug(" ## Setting up threading service...\n", .{});
 
     procman.init();
     scheduler.init();

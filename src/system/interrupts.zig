@@ -19,14 +19,14 @@ const system_idt = switch (sys.arch) {
 
 // Interrupt functions
 fn unhandled_interrupt(frame: *TaskContext) void {
-    debug.err("\nUnhandled interrupt {0} (0x{0X:0>2})!\n", .{ frame.intnum });
-    debug.err("{}\n", .{ frame });
+    std.log.debug("\nUnhandled interrupt {0} (0x{0X:0>2})!\n", .{ frame.intnum });
+    std.log.debug("{}\n", .{ frame });
 }
 
 
 pub fn interrupt_handler(int_frame: *TaskContext) void {
     int_frame.intnum &= 0xFF;
-    //debug.print("Branching to interrupt {X:0>2}...\n", .{int_frame.intnum});
+    //std.log.info("Branching to interrupt {X:0>2}...\n", .{int_frame.intnum});
     interrupts[int_frame.intnum](int_frame);
 }
 

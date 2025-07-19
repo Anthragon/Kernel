@@ -48,9 +48,9 @@ pub fn append_device(
     const dev_dir = root.fs.get_root().branch("dev").value;
     _ = dev_dir.append(&entry.*.?.fs_node.node);
 
-    debug.print("\nPrinting fs tree:\n", .{});
+    std.log.info("\nPrinting fs tree:\n", .{});
     root.fs.lsroot();
-    debug.print("\n", .{});
+    std.log.info("\n", .{});
 
     return free_slot;
 }
@@ -71,7 +71,7 @@ pub fn lsblk() void {
             const size_float: f64 = @floatFromInt(size_bytes);
             const unit_float: f64 = @floatFromInt(units[j].size);
 
-            debug.print("{: >4} : {s}  {d:.2} {s}\n",.{ i, entry.?.type, size_float/unit_float, units[j].name });
+            std.log.info("{: >4} : {s}  {d:.2} {s}\n",.{ i, entry.?.type, size_float/unit_float, units[j].name });
 
         }
     }
