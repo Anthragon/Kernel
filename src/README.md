@@ -3,7 +3,7 @@
 
 # Index
 
-- /auth/
+- [auth](/auth/)
 - /boot/
 - /debug/
 - /devices/
