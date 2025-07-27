@@ -5,6 +5,8 @@ const debug = root.debug;
 const pci_global = @import("../../pci.zig");
 const allocator = root.mem.heap.kernel_buddy_allocator;
 
+const log = std.log.scoped(.@"devices PCI x86_64");
+
 pub const Addr = @import("Addr.zig").Addr;
 
 const PciDevice = pci_global.PciDevice;
@@ -14,9 +16,9 @@ const DeviceList = pci_global.DeviceList;
 
 pub fn list_devices(list: *DeviceList) !void {
 
-    std.log.info("Scanning bus root...\n", .{});
+    log.info("Scanning bus root...", .{});
     bus_scan(0, list);
-    std.log.info("Scan complete!\n", .{});
+    log.info("Scan complete!", .{});
 
 }
 
@@ -32,13 +34,13 @@ pub fn device_scan(bus: u8, device: u5, list: *DeviceList) void {
 
     if (nullfunc.header_type().read() == 0xFFFF) return;
 
-    function_scan(nullfunc, list) catch |err| std.log.debug("Could not list device: {s}\n", .{@errorName(err)});
+    function_scan(nullfunc, list) catch |err| log.debug("Could not list device: {s}", .{@errorName(err)});
 
     if (nullfunc.header_type().read() & 0x80 == 0) return;
 
     inline for (0..((1 << 3) - 1)) |function| {
         function_scan(.{ .bus = bus, .device = device, .function = @intCast(function + 1) }, list)
-            catch |err| std.log.debug("Could not list device: {s}\n", .{@errorName(err)});
+            catch |err| log.debug("Could not list device: {s}", .{@errorName(err)});
     }
 }
 
@@ -54,17 +56,17 @@ pub fn function_scan(addr: Addr, list: *DeviceList) !void {
         var still_unrecognized = false;
 
         switch (addr.sub_class().read()) {
-            0x00 => std.log.debug("Host bridge (ignoring)\n", .{}),
+            0x00 => log.debug("Host bridge (ignoring)", .{}),
             0x04 => {
-                std.log.debug("PCI-to-PCI bridge", .{});
+                log.debug("PCI-to-PCI bridge", .{});
                 if ((addr.header_type().read() & 0x7F) != 0x01) {
 
-                    std.log.debug(" (Not PCI-to-PCI bridge header type!)\n", .{});
+                    log.debug(" (Not PCI-to-PCI bridge header type!)", .{});
 
                 } else {
 
                     const secondary_bus = addr.secondary_bus().read();
-                    std.log.debug(", recursively scanning bus {0X}\n", .{secondary_bus});
+                    log.debug(", recursively scanning bus {0X}", .{secondary_bus});
                     bus_scan(secondary_bus, list);
                     
                 }

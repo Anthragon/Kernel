@@ -6,6 +6,7 @@ const TaskContext = @import("taskContext.zig").TaskContext;
 const ports = @import("ports.zig");
 
 const debug = root.debug;
+const log = std.log.scoped(.x86_64_IDT);
 
 var entries: [256]Entry = undefined;
 
@@ -50,7 +51,7 @@ fn load_idt(idt: *[256]Entry) void {
     var idtp = Pointer{ .limit = @intCast(@sizeOf(Entry) * 256 - 1), .base = @intFromPtr(idt) };
     asm volatile ("lidt (%[idtp])" :: [idtp] "r" (&idtp));
 
-    std.log.debug("IDT is now {X}\n", .{idtp.base});
+    log.debug("IDT is now {X}", .{idtp.base});
 }
 fn set_entry(self: *[256]Entry, num: u8, b: *const fn () callconv(.Naked) void, selector: u16, privilege: u2) void {
     const ie = &self[num];

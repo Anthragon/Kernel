@@ -3,6 +3,8 @@ const root = @import("root");
 const debug = root.debug;
 const interop = root.interop;
 
+const log = std.log.scoped(.fs);
+
 pub const FsNode = @import("fs_node.zig").FsNode;
 pub const Result = interop.Result;
 pub const default_nodes = @import("default_nodes.zig");
@@ -17,7 +19,7 @@ var fs_dev: default_nodes.VirtualDirectory = undefined;
 
 
 pub fn init() void {
-    std.log.debug(" ## Setting up file system service...\n", .{});
+    log.debug(" ## Setting up file system service...", .{});
 
     //arena = .init(kernel_allocator);
     //allocator = arena.allocator();
@@ -42,7 +44,7 @@ pub fn lsdir(node: *FsNode) void {
 
     var iterator = node.get_iterator().val;
     while (iterator.next()) |n| {
-        std.log.info("{s: <15} {s}\n", .{n.name, n.type});
+        log.info("{s: <15} {s}", .{n.name, n.type});
     }
 
 }
@@ -68,12 +70,12 @@ pub fn lsroot() void {
 
         if (last.iter.next()) |node| {
 
-            for (0..last.level) |_| std.log.info("  ", .{});
+            for (0..last.level) |_| log.info("  ", .{});
 
             if (node.iterable) {
-                std.log.info("{s: <20} {s}\n", .{ node.name, node.type });
+                log.info("{s: <20} {s}", .{ node.name, node.type });
             } else {
-                std.log.info("{s: <20} {s}\n", .{ node.name, node.type });
+                log.info("{s: <20} {s}", .{ node.name, node.type });
             }
 
             if (node.iterable) {

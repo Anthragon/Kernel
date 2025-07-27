@@ -5,6 +5,8 @@ const paging = root.system.mem_paging;
 const pmm = root.system.pmm;
 const debug = root.debug;
 
+const log = std.log.scoped(.vmm);
+
 const Alignment = std.mem.Alignment;
 const Allocator = std.mem.Allocator;
 
@@ -32,7 +34,7 @@ pub fn init() void {
     kernel_heap_start = pmm.kernel_virt_end + 2048 * pmm.page_size;
     kernel_heap_next_addr = kernel_heap_start;
 
-    std.log.debug("Heap start located at {x}\n", .{ kernel_heap_start });
+    log.debug("Heap start located at {x}", .{ kernel_heap_start });
 
     var gpa: Allocator = undefined;
 

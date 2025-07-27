@@ -6,6 +6,8 @@ const paging = root.system.mem_paging;
 const pmm = @import("pmm.zig");
 const cpuid = root.system.assembly.cpuid;
 
+const log = std.log.scoped(.@"x86_64 paging");
+
 const MemoryMap = paging.MemoryMap;
 const Attributes = paging.Attributes;
 const MMapError = paging.MMapError;
@@ -51,14 +53,14 @@ pub fn load_commited_map() void {
     var cr3_val: Cr3Value = ctrl_regs.read(.cr3);
     const phys = cr3_val.get_phys_addr();
     current_map = pmm.PtrFromPhys(Table(PML45), phys);
-    std.log.info("Loaded commited page table 0x{X} ({X})\n", .{phys, @intFromPtr(current_map)});
+    log.info("Loaded commited page table 0x{X} ({X})", .{phys, @intFromPtr(current_map)});
 }
 // Active the currently loaded memory map
 pub fn commit_map() void {
     var cr3_val: Cr3Value = ctrl_regs.read(.cr3);
     cr3_val.set_phys_addr(pmm.physFromPtr(current_map.?));
     ctrl_regs.write(.cr3, cr3_val);
-    std.log.debug("Comitted page table at 0x{X} ({X})\n", .{cr3_val.get_phys_addr(), @as(usize, @truncate(pmm.physFromPtr(current_map.?) >> 12))});
+    log.debug("Comitted page table at 0x{X} ({X})", .{cr3_val.get_phys_addr(), @as(usize, @truncate(pmm.physFromPtr(current_map.?) >> 12))});
 }
 
 // Creates a new empty memory map
@@ -68,7 +70,7 @@ pub fn create_new_map() MapPtr {
 
     for (0 .. mmap.len) |i| mmap[i] = @bitCast(@as(usize, 0));
 
-    std.log.debug("Map created at address {X}\n", .{@intFromPtr(mmap)});
+    log.debug("Map created at address {X}", .{@intFromPtr(mmap)});
     current_map = mmap;
     return mmap;
 }
@@ -76,24 +78,24 @@ pub fn create_new_map() MapPtr {
 // Debug prints the selected memory map (lots of logs)
 pub fn lsmemmap() void {
 
-    std.log.info("lsmemmap ({X}):\n", .{pmm.physFromPtr(current_map.?)});
+    log.info("lsmemmap ({X}):", .{pmm.physFromPtr(current_map.?)});
 
     for (current_map.?, 0..) |*cmap, i| if (cmap.present) {
-        std.log.info("PML4E {: >3} - {s11}{x:0>12} - {}\n", .{i, if (i < 256) "0000" else "ffff", i<<39, cmap});
+        log.info("PML4E {: >3} - {s11}{x:0>12} - {}", .{i, if (i < 256) "0000" else "ffff", i<<39, cmap});
 
         const page_dir_ptr: Table(PDPTE) = pmm.PtrFromPhys(Table(PDPTE), cmap.get_phys_addr());
         for (page_dir_ptr, 0..) |*pdp, j| if (pdp.present) {
-            std.log.info("\tPDPTE {: >3} - {s11}{x:0>12} - {}\n", .{j, if (i < 256) "0000" else "ffff", (i<<39)|(j<<30), pdp});
+            log.info("\tPDPTE {: >3} - {s11}{x:0>12} - {}", .{j, if (i < 256) "0000" else "ffff", (i<<39)|(j<<30), pdp});
             if (pdp.is_gb_page) continue;
 
             const page_dir: Table(PDE) = pmm.PtrFromPhys(Table(PDE), pdp.get_phys_addr());
             for (page_dir, 0..) |*pd, k| if (pd.present) {
-                std.log.info("\t\tPDPE  {: >3} - {s11}{x:0>12} - {}\n", .{k, if (i < 256) "0000" else "ffff", (i<<39)|(j<<30)|(k<<21), pd});
+                log.info("\t\tPDPE  {: >3} - {s11}{x:0>12} - {}", .{k, if (i < 256) "0000" else "ffff", (i<<39)|(j<<30)|(k<<21), pd});
                 if (pd.is_mb_page) continue;
 
                 const page_table: Table(PTE) = pmm.PtrFromPhys(Table(PTE), pd.get_phys_addr());
                 for (page_table, 0..) |*pt, l| if (pt.present) {
-                    std.log.info("\t\t\tPTE   {: >3} - {s11}{x:0>12} - {}\n", .{l, if (i < 256) "0000" else "ffff", (i<<39)|(j<<30)|(k<<21)|(l<<12), pt});
+                    log.info("\t\t\tPTE   {: >3} - {s11}{x:0>12} - {}", .{l, if (i < 256) "0000" else "ffff", (i<<39)|(j<<30)|(k<<21)|(l<<12), pt});
                 };
             };
         };
@@ -219,7 +221,7 @@ pub fn map_single_page(phys_base: usize, virt_base: usize, comptime size: usize,
 }
 pub fn map_range(phys_base: usize, virt_base: usize, length: usize, attributes: Attributes) MMapError!void {
 
-    // std.log.debug("mapping range ${X}..${X} -> ${X}..${X} ({s}{s}{s}{s}{s}{s})\n",
+    // log.debug("mapping range ${X}..${X} -> ${X}..${X} ({s}{s}{s}{s}{s}{s})",
     // .{
     //     phys_base, phys_base + length,
     //     virt_base, virt_base + length,

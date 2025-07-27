@@ -5,6 +5,8 @@ const debug = root.debug;
 const interop = root.interop;
 const utils = root.utils;
 
+const log = std.log.scoped(.modules);
+
 const Result = interop.Result;
 const Guid = utils.Guid;
 
@@ -14,13 +16,13 @@ var modules_map: std.AutoArrayHashMapUnmanaged(u128, Module) = .empty;
 var unitialized_list: std.ArrayListUnmanaged(u128) = .empty;
 
 pub fn init() void {
-    std.log.debug(" ## Setting up modules service...\n", .{});
+    log.debug(" ## Setting up modules service...", .{});
 }
 
 pub fn lsmodules() void {
-    std.log.info("Listing active modules:\n", .{});
+    log.info("Listing active modules:", .{});
     for (modules_map.values()) |i| {
-        std.log.info("{} - {s} {s} by {s} ({s} liscence) - {s}\n", .{ i.uuid, i.name, i.version, i.author, i.license, @tagName(i.status) });
+        log.info("{} - {s} {s} by {s} ({s} liscence) - {s}", .{ i.uuid, i.name, i.version, i.author, i.license, @tagName(i.status) });
     }
 }
 
@@ -68,7 +70,7 @@ fn register_module_internal(
 
     // Check if the module is already registered
     if (modules_map.contains(uuid)) {
-        std.log.debug("Module '{s}' is already registered.\n", .{name});
+        log.debug("Module '{s}' is already registered.", .{name});
         return error.ModuleAlreadyRegistered;
     }
 
@@ -105,7 +107,7 @@ pub inline fn has_waiting_modules() bool {
 }
 pub inline fn get_next_waiting_module() ?*Module {
     if (unitialized_list.items.len == 0) {
-        std.log.debug("No waiting modules to pop.\n", .{});
+        log.debug("No waiting modules to pop.", .{});
         return null;
     }
     return modules_map.getPtr(unitialized_list.orderedRemove(0));

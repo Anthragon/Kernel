@@ -34,6 +34,8 @@ pub const os = @import("os/os.zig");
 /// with the kernel. Do not mind.
 pub const std_options = system.std_options.options;
 
+const log = std.log.scoped(.main);
+
 var boot_info: BootInfo = undefined;
 
 // linking entry point symbol
@@ -62,9 +64,9 @@ pub fn main(_boot_info: BootInfo) noreturn {
     @import("interrupts.zig").install_interrupts();
 
     // Printing hello world
-    std.log.info("\nHello, World from {s}!\n", .{ @tagName(system.arch) });
+    log.info("\nHello, World from {s}!", .{ @tagName(system.arch) });
  
-    std.log.debug("\n# Initializing OS specific\n", .{});
+    log.debug("\n# Initializing OS specific", .{});
 
     modules.init();
 
@@ -73,42 +75,37 @@ pub fn main(_boot_info: BootInfo) noreturn {
     devices.init();       
     threading.init();
     system.time.init();
-    std.log.debug(" # All services ready!\n", .{});
+    log.debug(" # All services ready!", .{});
 
     // Setting up Adam
-    std.log.debug("# Registring adam process and task...\n", .{});
+    log.debug("# Registring adam process and task...", .{});
     const system_proc = threading.procman.get_process_from_pid(0).?;
     _ = system_proc.create_task(
         @import("adam.zig")._start,
         @as([*]u8, @ptrFromInt(boot_info.kernel_stack_pointer_base - 0x1000))[0..0x1000],
         255
     ) catch unreachable;
-    std.log.debug(" # Adam is ready!\n", .{});
+    log.debug(" # Adam is ready!", .{});
 
     // Everything is ready, debug routine and them
     // start the scheduler
-    std.log.info("\nDumping random data to see if everything is right:\n", .{});
+    log.info("\nDumping random data to see if everything is right:", .{});
 
-    std.log.info("\n", .{});
-    std.log.info("Time: {} ({})\n", .{ system.time.get_datetime(), system.time.timestamp() });
-    std.log.info("\n", .{});
+    log.info("", .{});
+    log.info("Time: {} ({})", .{ system.time.get_datetime(), system.time.timestamp() });
+    log.info("", .{});
     devices.pci.lspci();
-    std.log.info("\n", .{});
+    log.info("", .{});
     auth.lsusers();
-    std.log.info("\n", .{});
+    log.info("", .{});
     threading.procman.lsproc();
-    std.log.info("\n", .{});
+    log.info("", .{});
     threading.procman.lstasks();
 
-    std.log.info("\nSetup finished. Giving control to the scheduler...\n", .{});
+    log.info("\nSetup finished. Giving control to the scheduler...", .{});
     system.finalize() catch @panic("System initialization could not be finalized!");
 
-    std.log.debug("Testing a thing...", .{});
-    std.log.info("Testing a thing...", .{});
-    std.log.debug("Testing a thing...", .{});
-    std.log.warn("Testing a thing...", .{});
-
-    std.log.debug("# Giving control to the scheduer...\n", .{});
+    log.debug("# Giving control to the scheduer...", .{});
     while (true) system.assembly.flags.set_interrupt();
     unreachable;
 }
@@ -122,21 +119,21 @@ pub inline fn get_boot_info() BootInfo {
 var panicked: bool = false;
 pub fn panic(msg: []const u8, _: ?*std.builtin.StackTrace, return_address: ?usize) noreturn {
     if (panicked) {
-        std.log.info("\n", .{});
-        std.log.info("!--------------------------------------------------!\n", .{});
-        std.log.info("!                   DOUBLE PANIC                   !\n", .{});
-        std.log.info("!--------------------------------------------------!\n", .{});
-        std.log.info("\nError: {s}\n\n", .{msg});
+        std.log.info("", .{});
+        std.log.info("!--------------------------------------------------!", .{});
+        std.log.info("!                   DOUBLE PANIC                   !", .{});
+        std.log.info("!--------------------------------------------------!", .{});
+        std.log.info("\nError: {s}\n", .{msg});
         system.assembly.halt();
     }
 
     panicked = true;
 
-    std.log.info("\n", .{});
-    std.log.info("!--------------------------------------------------!\n", .{});
-    std.log.info("!                   KERNEL PANIC                   !\n", .{});
-    std.log.info("!--------------------------------------------------!\n", .{});
-    std.log.info("\nError: {s}\n\n", .{msg});
+    std.log.info("", .{});
+    std.log.info("!--------------------------------------------------!", .{});
+    std.log.info("!                   KERNEL PANIC                   !", .{});
+    std.log.info("!--------------------------------------------------!", .{});
+    std.log.info("\nError: {s}\n", .{msg});
 
     var dalloc = mem.vmm.get_debug_allocator_controller();
     if (dalloc != null) {
@@ -145,12 +142,12 @@ pub fn panic(msg: []const u8, _: ?*std.builtin.StackTrace, return_address: ?usiz
 
     if (return_address) |ret| {
 
-        std.log.info("\nStack Trace in stderr\n", .{});
-        std.log.debug("\nStack Trace:\n", .{});
+        std.log.info("\nStack Trace in stderr", .{});
+        std.log.debug("\nStack Trace:", .{});
         _ = ret;//debug.dumpStackTrace(ret);
 
     } else {
-        std.log.info("No Stack Trace\n", .{});
+        std.log.info("No Stack Trace", .{});
     }
 
     panicked = false;

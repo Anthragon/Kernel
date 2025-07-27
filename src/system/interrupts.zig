@@ -3,6 +3,8 @@ const root = @import("root");
 const sys = root.system;
 const debug = root.debug;
 
+const log = std.log.scoped(.interrupt);
+
 const TaskContext = root.system.TaskContext;
 
 pub const InterruptHandler = *const fn (*TaskContext) void;
@@ -19,14 +21,14 @@ const system_idt = switch (sys.arch) {
 
 // Interrupt functions
 fn unhandled_interrupt(frame: *TaskContext) void {
-    std.log.debug("\nUnhandled interrupt {0} (0x{0X:0>2})!\n", .{ frame.intnum });
-    std.log.debug("{}\n", .{ frame });
+    log.debug("\nUnhandled interrupt {0} (0x{0X:0>2})!", .{ frame.intnum });
+    log.debug("{}", .{ frame });
 }
 
 
 pub fn interrupt_handler(int_frame: *TaskContext) void {
     int_frame.intnum &= 0xFF;
-    //std.log.info("Branching to interrupt {X:0>2}...\n", .{int_frame.intnum});
+    //log.info("Branching to interrupt {X:0>2}...", .{int_frame.intnum});
     interrupts[int_frame.intnum](int_frame);
 }
 

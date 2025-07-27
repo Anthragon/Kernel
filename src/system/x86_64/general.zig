@@ -11,29 +11,31 @@ const cpuid = @import("asm/cpuid.zig");
 const root = @import("root");
 const debug = root.debug;
 
+const log = std.log.scoped(.x86_64);
+
 pub fn init() !void {
 
     try serial.init();
-    std.log.debug("Serial initialized\n", .{});
+    log.debug("Serial initialized", .{});
 
     log_cpu_features();
 
-    std.log.debug("Installing GDT...\n", .{});
+    log.debug("Installing GDT...", .{});
     gdt.install();
-    std.log.debug("Installing IDT...\n", .{});
+    log.debug("Installing IDT...", .{});
     idt.install();
 
-    std.log.debug("Setting up Physical Memory Management...\n", .{});
+    log.debug("Setting up Physical Memory Management...", .{});
     pmm.setup();
     
 }
 
 pub fn finalize() !void {
     
-    std.log.debug("Setting up Programable Interrupt Controller...\n", .{});
+    log.debug("Setting up Programable Interrupt Controller...", .{});
     pic.setup();
 
-    std.log.debug("Setting up Programable Interval Timer...\n", .{});
+    log.debug("Setting up Programable Interval Timer...", .{});
     setup_timer_interval();
 
 }
@@ -44,7 +46,7 @@ fn log_cpu_features() void {
     const features_set_1 = cpu_features.features;
     const features_set_2 = cpu_features.features2;
 
-    std.log.debug(\\
+    log.debug(\\
     \\ CPU Features Set 1:
     \\    fpu:     {: <5}  vme:    {: <5}  dbg:     {: <5}  pse:     {: <5}
     \\    tsc:     {: <5}  msr:    {: <5}  pae:     {: <5}  mce:     {: <5}
@@ -65,7 +67,7 @@ fn log_cpu_features() void {
         features_set_1.sse2, features_set_1.ss, features_set_1.htt, features_set_1.tm1,
         features_set_1.ia64, features_set_1.pbe,
     });
-    std.log.debug(
+    log.debug(
     \\ CPU Features Set 2:
     \\    sse3:    {: <5}  pclmul: {: <5}  dtes64:  {: <5}  mon:    {: <5}
     \\    dscpl:   {: <5}  vmx:    {: <5}  smx:     {: <5}  est:    {: <5}

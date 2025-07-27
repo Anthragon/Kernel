@@ -4,6 +4,7 @@ const root = @import("root");
 const sys = root.system;
 const interrupts = sys.interrupts;
 const debug = root.debug;
+const log = std.log.scoped(.main);
 
 const TaskContext = root.system.TaskContext;
 
@@ -24,31 +25,31 @@ pub fn install_interrupts() void {
 }
 
 fn division_error(frame: *TaskContext) void {
-    std.log.debug("\n(#DE) Division Exception!\n", .{});
-    std.log.debug("(#DE) An attempt to divide by 0 was made.\n", .{});
+    log.debug("\n(#DE) Division Exception!", .{});
+    log.debug("(#DE) An attempt to divide by 0 was made.", .{});
 
     root.panic("Division Error", null, frame.get_instruction_ptr());
 }
 fn overflow_error(frame: *TaskContext) void {
-    std.log.debug("\n(#OF) Overflow Exception!\n", .{});
-    std.log.debug("(#OF) INTO check failed.\n", .{});
+    log.debug("\n(#OF) Overflow Exception!", .{});
+    log.debug("(#OF) INTO check failed.", .{});
 
     root.panic("Overflow Error", null, frame.get_instruction_ptr());
 }
 fn bound_range_exceeded(frame: *TaskContext) void {
-    std.log.debug("\n(#BR) Bound Range Exceeded Exception!\n", .{});
-    std.log.debug("(#BR) Index was out of bounds.\n", .{});
+    log.debug("\n(#BR) Bound Range Exceeded Exception!", .{});
+    log.debug("(#BR) Index was out of bounds.", .{});
 
     root.panic("Bound Range Exceeded", null, frame.get_instruction_ptr());
 }
 fn invalid_opcode(frame: *TaskContext) void {
-    std.log.debug("\n(#UD) Invalid OpCode Exception!\n", .{});
-    std.log.debug("(#UD) Attempted to execute an invalid opcode.\n", .{});
+    log.debug("\n(#UD) Invalid OpCode Exception!", .{});
+    log.debug("(#UD) Attempted to execute an invalid opcode.", .{});
 
     // Shows system-dependent error messages here
     switch (sys.arch) {
         .x86_64 => {
-            std.log.debug("(#UD) Fetched bytes: {X:0>2} {X:0>2} {X:0>2} {X:0>2}"
+            log.debug("(#UD) Fetched bytes: {X:0>2} {X:0>2} {X:0>2} {X:0>2}"
             , .{
                 @as(*u8, @ptrFromInt(frame.rip)).*,
                 @as(*u8, @ptrFromInt(frame.rip + 1)).*,
@@ -63,10 +64,10 @@ fn invalid_opcode(frame: *TaskContext) void {
 }
 
 fn double_fault(frame: *TaskContext) void {
-    std.log.debug("(#DF) The same exception happened two times.\n", .{});
+    log.debug("(#DF) The same exception happened two times.", .{});
 
-    std.log.debug("\n(#DF) Dumping frame:\n", .{});
-    std.log.debug("{}\n", .{ frame });
+    log.debug("\n(#DF) Dumping frame:", .{});
+    log.debug("{}", .{ frame });
 
     root.panic("Double fault", null, frame.get_instruction_ptr());
     sys.assembly.halt();
@@ -74,14 +75,14 @@ fn double_fault(frame: *TaskContext) void {
 
 fn general_protection_fault(frame: *TaskContext) void {
 
-    std.log.debug("\n(#GP) General Protection Exception!\n", .{});
+    log.debug("\n(#GP) General Protection Exception!", .{});
 
     // Shows system-dependent error messages here
     switch (sys.arch) {
         .x86_64 => {
             const err: GeneralProtection_err_x86_64 = @bitCast(frame.error_code);
 
-            std.log.debug("(#GP) Generated{s} when accessing index {} of the {s}\n", .{
+            log.debug("(#GP) Generated{s} when accessing index {} of the {s}", .{
                 if (err.external) " externally" else "",
                 err.index,
                 switch (err.table) {
@@ -94,22 +95,22 @@ fn general_protection_fault(frame: *TaskContext) void {
         else => unreachable
     }
     
-    std.log.debug("(#GP) Dumping frame:\n", .{});
-    std.log.debug("{}\n", .{ frame });
+    log.debug("(#GP) Dumping frame:", .{});
+    log.debug("{}", .{ frame });
 
     root.panic("General Protection fault", null, frame.get_instruction_ptr());
     sys.assembly.halt();
 }
 fn page_fault(frame: *TaskContext) void {
 
-    std.log.debug("\n(#PF) Page Fault Exception!\n", .{});
+    log.debug("\n(#PF) Page Fault Exception!", .{});
 
     // Shows system-dependent error messages here
     switch (sys.arch) {
         .x86_64 => {
             const err: PageFault_err_x86_64 = @bitCast(frame.error_code);
 
-            std.log.debug(
+            log.debug(
                 \\(#PF) error info:
                 \\(#PF) -    page present:   {s}
                 \\(#PF) -    access:         {s}
@@ -129,8 +130,8 @@ fn page_fault(frame: *TaskContext) void {
         else => unreachable
     }
     
-    std.log.debug("\n(#PF) Dumping frame:\n", .{});
-    std.log.debug("{}\n", .{ frame });
+    log.debug("\n(#PF) Dumping frame:", .{});
+    log.debug("{}", .{ frame });
 
     root.panic("Page fault", null, frame.get_instruction_ptr());
     sys.assembly.halt();

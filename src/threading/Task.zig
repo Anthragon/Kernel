@@ -30,13 +30,13 @@ pub const TaskState = enum(u8) {
 
 pub fn format(self: *const @This(), comptime _: []const u8, _: std.fmt.FormatOptions, fmt: anytype) !void {
 
-    try fmt.print("process {s} ({}) task {} - priority {} - {s}\n", .{
+    try fmt.print("process {s} ({}) task {} - priority {} - {s}", .{
         self.process.name, self.process.process_id, self.task_id, self.priority, @tagName(self.state) });
         
-    try fmt.print("privilege: {}\n", .{ self.process.privilege });
-    try fmt.print("created at: {}\n", .{ self.creation_timestamp });
+    try fmt.print("privilege: {}", .{ self.process.privilege });
+    try fmt.print("created at: {}", .{ self.creation_timestamp });
 
-    try fmt.print("context:\n{}\n", .{ self.context });
+    try fmt.print("context:\n{}", .{ self.context });
     
 
 }

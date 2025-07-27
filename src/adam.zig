@@ -4,6 +4,7 @@ const threading = root.threading;
 const modules = root.modules;
 
 const debug = root.debug;
+const log = std.log.scoped(.adam);
 
 // Adam is a better term for the first father of all tasks
 // than root was! - Terry A. Davis
@@ -17,7 +18,7 @@ const builtin_modules = .{
 pub fn _start(args: ?*anyopaque) callconv(.c) noreturn {
     _ = args;
 
-    std.log.info("\nHello, Adam!\n", .{});
+    log.info("\nHello, Adam!", .{});
 
     // Running the build-in core drivers
 
@@ -37,12 +38,12 @@ pub fn _start(args: ?*anyopaque) callconv(.c) noreturn {
         );
     }
 
-    std.log.info("{} built in modules registred!\n", .{ builtin_modules.len });
+    log.info("{} built in modules registred!", .{ builtin_modules.len });
 
     threading.procman.lstasks();
     modules.lsmodules();
 
-    std.log.info("Entering in sleep mode... zzz\n\n", .{});
+    log.info("Entering in sleep mode... zzz\n", .{});
 
     // Adam should never return as it indicates
     // that the system is alive
@@ -53,19 +54,19 @@ pub fn _start(args: ?*anyopaque) callconv(.c) noreturn {
 
         if (modules.has_waiting_modules()) {
             const module = modules.get_next_waiting_module().?;
-            std.log.info("Initializing module {s}...\n", .{module.name});
+            log.info("Initializing module {s}...", .{module.name});
 
             const res = module.init();
 
             if (res) {
-                std.log.debug("Module {s} initialized successfully!\n", .{module.name});
+                log.debug("Module {s} initialized successfully!", .{module.name});
                 module.status = .Active;
             } else {
-                std.log.debug("Module {s} failed to initialize!\n", .{module.name});
+                log.debug("Module {s} failed to initialize!", .{module.name});
                 module.status = .Failed;
             }
             
-            std.log.info("Initialization done; Module {s} status: {s}\n", .{module.name, @tagName(module.status)});
+            log.info("Initialization done; Module {s} status: {s}", .{module.name, @tagName(module.status)});
         }
 
     }

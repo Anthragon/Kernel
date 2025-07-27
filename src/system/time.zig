@@ -2,6 +2,8 @@ const std = @import("std");
 const root = @import("root");
 const sys = root.system;
 
+const log = std.log.scoped(.time);
+
 const debug = root.debug;
 
 pub const Date = struct {
@@ -143,7 +145,7 @@ pub const get_datetime: fn () DateTime = internal.get_datetime;
 pub fn get_elapsed_ticks() usize { return elapsed_ticks; }
 
 pub fn init() void {
-    std.log.debug(" ## Setting up time service...\n", .{});
+    log.debug(" ## Setting up time service...", .{});
 
     // 0x20 = 32
     sys.interrupts.set_vector(0x20, timer_int, .kernel);

@@ -1,10 +1,12 @@
-// Implementation of the users and permition system
+//! Implementation of the users and permition system
 
 const std = @import("std");
 const root = @import("root");
 const debug = root.debug;
 const Guid = root.utils.Guid;
 const allocator = root.mem.heap.kernel_buddy_allocator;
+
+const log = std.log.scoped(.auth);
 
 const UserList = std.ArrayList(*User);
 
@@ -36,7 +38,7 @@ pub const User = struct {
 };
 
 pub fn init() void {
-    std.log.debug(" ## Setting up auth service...\n", .{});
+    log.debug(" ## Setting up auth service...", .{});
 
     user_list = UserList.init(allocator);
 
@@ -101,10 +103,10 @@ pub fn get_user_by_index(index: usize) ?*User {
 
 pub fn lsusers() void {
     
-    std.log.info("Listing users:\n", .{});
+    log.info("Listing users:", .{});
 
     for (user_list.items) |i| {
-        std.log.info("{: <2} - {s} {s} {c}{c}{c}\n", .{
+        log.info("{: <2} - {s} {s} {c}{c}{c}", .{
 
             i.index,
             i.name,

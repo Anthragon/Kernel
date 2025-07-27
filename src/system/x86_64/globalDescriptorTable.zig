@@ -2,6 +2,8 @@ const std = @import("std");
 const root = @import("root");
 const debug = root.debug;
 
+const log = std.log.scoped(.x86_64_GDT);
+
 pub var tables: [5 + 2]Entry = undefined;
 pub const selector = .{
     .null =       @as(u16, 0 << 3),
@@ -179,7 +181,7 @@ pub inline fn get_ptr() Pointer {
 
 fn load_gdt(gdt: []Entry) void {
     var gdtp = Pointer{ .limit = @intCast(@sizeOf(Entry) * gdt.len - 1), .base = @intFromPtr(gdt.ptr) };
-    std.log.debug("GDT at {x}\n", .{@intFromPtr(gdt.ptr)});
+    log.debug("GDT at {x}", .{@intFromPtr(gdt.ptr)});
 
     // load gdt
     asm volatile ("lgdt (%[gdt])" : : [gdt] "r" (&gdtp), );

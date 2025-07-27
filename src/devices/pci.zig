@@ -3,6 +3,8 @@ const root = @import("root");
 const sys = root.system;
 const allocator = root.mem.heap.kernel_buddy_allocator;
 
+const log = std.log.scoped(.@"devices PCI");
+
 const debug = root.debug;
 
 pub const internal = switch (sys.arch) {
@@ -98,24 +100,24 @@ pub export fn pci_device_probe(query: [*]const PciDeviceQuery, func: DeviceProbe
     var j: usize = 0;
     while (!query[j].isNull()) : (j += 1) {
         const q = query[j];
-        std.log.debug("query {} ", .{j});
+        log.debug("query {} ", .{j});
 
         for (devList.items, 0..) |dev, dev_idx| {
-            std.log.debug("dev {} ", .{dev_idx});
+            log.debug("dev {} ", .{dev_idx});
             
             if (!dev.binded) {
 
-                if (q.vendor != 0xffff and dev.addr.vendor_id().read() != q.vendor) { std.log.debug("vendor fail\n", .{}); continue; }
-                if (q.device != 0xffff and dev.addr.device_id().read() != q.device) { std.log.debug("device fail\n", .{}); continue; }
-                if (q.class != 0 and dev.addr.base_class().read() != q.class) { std.log.debug("base class fail\n", .{}); continue; }
-                if (q.sub_class != 0 and dev.addr.sub_class().read() != q.sub_class) { std.log.debug("sub class fail\n", .{}); continue; }
-                if (q.prog_if != 0 and dev.addr.prog_if().read() != q.prog_if) { std.log.debug("prog if fail\n", .{}); continue; }
+                if (q.vendor != 0xffff and dev.addr.vendor_id().read() != q.vendor) { log.debug("vendor fail", .{}); continue; }
+                if (q.device != 0xffff and dev.addr.device_id().read() != q.device) { log.debug("device fail", .{}); continue; }
+                if (q.class != 0 and dev.addr.base_class().read() != q.class) { log.debug("base class fail", .{}); continue; }
+                if (q.sub_class != 0 and dev.addr.sub_class().read() != q.sub_class) { log.debug("sub class fail", .{}); continue; }
+                if (q.prog_if != 0 and dev.addr.prog_if().read() != q.prog_if) { log.debug("prog if fail", .{}); continue; }
 
-                std.log.debug("Passed\n", .{});
+                log.debug("Passed", .{});
 
                 const res = func(dev);
                 if (res) {
-                    std.log.info("Device successfully binded by module!\n", .{});
+                    log.info("Device successfully binded by module!", .{});
                     dev.binded = true;
                 }
             }
@@ -127,11 +129,11 @@ pub export fn pci_device_probe(query: [*]const PciDeviceQuery, func: DeviceProbe
 
 pub fn lspci() void {
 
-    std.log.info("Listing PCI devices:\n", .{});
+    log.info("Listing PCI devices:", .{});
     
     for (devList.items) |i| {
-        std.log.info(
-            "{X:0>2}:{X:0>2}.{X:0>1} [{X:0>2}:{X:0>2}] {s}: [{X:0>4}] {s} - [{X:0>4}] {s}\n",
+        log.info(
+            "{X:0>2}:{X:0>2}.{X:0>1} [{X:0>2}:{X:0>2}] {s}: [{X:0>4}] {s} - [{X:0>4}] {s}",
             .{
 
             i.get_bus(),

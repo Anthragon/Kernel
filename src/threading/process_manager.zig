@@ -4,6 +4,8 @@ const threading = root.threading;
 const auth = root.auth;
 const allocator = root.mem.heap.kernel_buddy_allocator;
 
+const log = std.log.scoped(.@"process man");
+
 const debug = root.debug;
 
 var proc_list: []?*Process = undefined;
@@ -13,7 +15,7 @@ const Process = threading.Process;
 pub fn init() void {
 
     proc_list = allocator.alloc(?*threading.Process, 32) catch {
-        std.log.info("Failed to allocate process list\n", .{});
+        log.info("Failed to allocate process list", .{});
         @panic("OOM");
     };
     @memset(proc_list, null);
@@ -66,11 +68,11 @@ pub fn get_process_from_pid(pid: usize) ?*Process {
 }
 
 pub fn lsproc() void {
-    std.log.info("Listing processes:\n", .{});
+    log.info("Listing processes:", .{});
 
     for (proc_list) |proc| {
         if (proc) |p| {
-            std.log.info("{: <2} - {s} (running by {s})\n", .{
+            log.info("{: <2} - {s} (running by {s})", .{
                 p.process_id,
                 p.name,
                 p.user.name,
@@ -80,7 +82,7 @@ pub fn lsproc() void {
 
 }
 pub fn lstasks() void {
-    std.log.info("Listing tasks:\n", .{});
+    log.info("Listing tasks:", .{});
 
     for (proc_list) |proc| {
         if (proc) |p| {
@@ -88,7 +90,7 @@ pub fn lstasks() void {
             for (p.tasks) |task| {
                 if (task) |t| {
 
-                    std.log.info("{X:0>4}:{X:0>4} - {s} - created at {}\n", .{
+                    log.info("{X:0>4}:{X:0>4} - {s} - created at {}", .{
                         p.process_id,
                         t.task_id,
                         @tagName(t.state),

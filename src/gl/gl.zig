@@ -32,6 +32,8 @@ const Pixel = packed struct(u32) {
     }
 };
 
+const log = std.log.scoped(.gl);
+
 pub fn init(fb: []u8, w: usize, h: usize, p: usize) void {
     framebuffer.ptr = @ptrCast(@alignCast(fb.ptr));
     framebuffer.len = fb.len / 4;
@@ -48,7 +50,7 @@ pub fn init(fb: []u8, w: usize, h: usize, p: usize) void {
     char_width = @min(100, @divFloor(width - 60, font_width));
     char_height = @divFloor(height - 60, font_height);
 
-    std.log.info(
+    log.info(
         \\
         \\Graphics library info:
         \\w:  {: >5} h:  {: >5} p:  {: >5}

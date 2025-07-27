@@ -2,6 +2,9 @@ const std = @import("std");
 const root = @import("root");
 const ports = @import("ports.zig");
 
+const serial = root.system.serial;
+const debug = root.debug;
+
 pub const options: std.Options = .{
     .page_size_min = 4096,
     .page_size_max = 4096,
@@ -13,29 +16,59 @@ pub const options: std.Options = .{
     .crypto_always_getrandom = true,
 };
 
-fn logFn(comptime message_level: std.log.Level, comptime scope: @TypeOf(.enum_literal), comptime format: []const u8, args: anytype) void {
-    switch (scope) {
-        else => {
-            const fmt = @tagName(scope) ++ " " ++ @tagName(message_level) ++ " >> " ++ format ++ "\n";
-            root.debug.err(fmt, args);
-        },
 
-        .default => {
-            const fmt = format;      
-            switch (message_level) {
-                .info => root.debug.print(fmt, args),
+var last_scope: usize = 0;
 
-                .warn,
-                .debug => root.debug.err(fmt, args),
+fn logFn(
+    comptime message_level: std.log.Level,
+    comptime scope: @TypeOf(.enum_literal),
+    comptime format: []const u8,
+    args: anytype,
+) void {
 
-                .err => {
-                    root.debug.print(fmt, args);
-                    root.debug.err(fmt, args);
-                },
-            }
-        }
+    var content_buf: [1024]u8 = undefined;
 
+    const content = std.fmt.bufPrint(&content_buf, format, args) catch b: {
+        const msg = "...[too long]\n";
+        @memcpy(content_buf[1024-msg.len..], msg);
+        break :b &content_buf;
+    };
+
+    const header = std.fmt.comptimePrint(
+        "[ {s: <20} {s: <5} ] ", 
+        .{@tagName(scope),
+        @tagName(message_level)}
+    );
+
+    const output1,
+    const output2,
+    const output3 = switch (message_level) {
+        .info =>  .{ true, false, true },
+
+        .warn,
+        .debug => .{ false, true, true },
+
+        .err =>   .{ true, true, true },
+    };
+
+    var lines = std.mem.splitAny(u8, content, "\n");
+
+    var current_line = lines.next();
+    while (current_line) |line| : (current_line = lines.next())  {
+        write_log_message(output1, output2, false, header);
+        write_log_message(output1, output2, output3, line);
+        write_log_message(output1, output2, output3, "\n");
     }
+    
+    debug.redraw_screen();
+
+}
+
+
+fn write_log_message(out: bool, err: bool, scr: bool, content: []const u8) void {
+    if (out) serial.chardev(1).writeAll(content) catch unreachable;
+    if (err) serial.chardev(2).writeAll(content) catch unreachable;
+    if (scr) debug.swriter().writeAll(content) catch unreachable;
 }
 
 fn criptoRandomSeed(buffer: []u8) void {

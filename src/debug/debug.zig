@@ -2,11 +2,13 @@ const root = @import("root");
 const std = @import("std");
 const builtin = @import("builtin");
 
+const log = std.log.scoped(.no_header);
+
 pub const serial = root.system.serial;
 const tty_config: std.io.tty.Config = .no_color;
 
-const stdout = 0;
-const stderr = 1;
+const stdout = 1;
+const stderr = 2;
 
 const screen_width = 150;
 const screen_height = 45;
@@ -14,22 +16,14 @@ var screen_buffer: [screen_width * screen_height]u8 = undefined;
 var screenx: usize = 0;
 var screeny: usize = 0;
 
-pub inline fn print(comptime fmt: []const u8, args: anytype) void {
-    serial.writer(stdout).print(fmt, args) catch |e| std.debug.panic("print error: {s}", .{@errorName(e)});
-    swriter().print(fmt, args) catch |e| std.debug.panic("draw error: {s}", .{@errorName(e)});
-    redraw_screen();
-}
-pub inline fn err(comptime fmt: []const u8, args: anytype) void {
-    serial.writer(stderr).print(fmt, args) catch |e| std.debug.panic("print error: {s}", .{@errorName(e)});
-}
 
 pub fn dumpStackTrace(ret_address: usize) void {
+    const writer = serial.writer(stderr);
+
     if (builtin.strip_debug_info) {
-        err("Unable to dump stack trace: debug info stripped\n", .{});
+        writer.print("Unable to dump stack trace: debug info stripped\n", .{});
         return;
     }
-
-    const writer = serial.writer(stderr);
 
     // I hate my life
     switch (root.system.arch) {
@@ -41,9 +35,10 @@ pub fn dumpStackTrace(ret_address: usize) void {
 pub fn dumpHex(bytes: []const u8) void {
     dumpHexInternal(bytes, tty_config, serial.writer(stdout)) catch {};
     dumpHexInternal(bytes, tty_config, swriter()) catch {};
+    redraw_screen();
 }
 pub fn dumpHexErr(bytes: []const u8) void {
-    dumpHexInternal(bytes, tty_config, serial.writer(stderr)) catch {};
+    dumpHexInternal(bytes, tty_config, serial.chardev(stderr)) catch {};
 }
 pub fn dumpHexFailable(bytes: []const u8) void {
     try dumpHexInternal(bytes, tty_config, serial.writer(stdout));
@@ -94,7 +89,7 @@ fn dumpHexInternal(bytes: []const u8, ttyconf: std.io.tty.Config, writer: anytyp
 // Screen things
 pub const ScreenWriter = std.io.Writer(*anyopaque, error{}, screen_out);
 
-inline fn swriter() ScreenWriter {
+pub inline fn swriter() ScreenWriter {
     return .{ .context = undefined };
 }
 fn screen_out(_: *anyopaque, bytes: []const u8) !usize {
@@ -124,7 +119,7 @@ fn push_lines_up() void {
     @memset(screen_buffer[(screen_height - 1) * screen_width .. screen_height * screen_width], 0);
     screeny -= 1;
 }
-fn redraw_screen() void {
+pub fn redraw_screen() void {
     const gl = root.gl;
 
     for (0..screen_height) |y| {

@@ -1,9 +1,9 @@
-// Implementation of the process unit
-// A process unit structure represents the
-// information about a process in execution,
-// it system dependences and permissions.
-// A process can contain multiple tasks, allowing
-// easy multitheading.
+//! Implementation of the process unit
+//! A process unit structure represents the
+//! information about a process in execution,
+//! it system dependences and permissions.
+//! A process can contain multiple tasks, allowing
+//! easy multitheading.
 
 const std = @import("std");
 const root = @import("root");
@@ -11,6 +11,8 @@ const threading = root.threading;
 const scheduler = threading.scheduler;
 const auth = root.auth;
 const debug = root.debug;
+
+const log = std.log.scoped(.process);
 
 const Task = threading.Task;
 const TaskEntry = *const fn (?*anyopaque) callconv(.c) noreturn;
@@ -35,7 +37,7 @@ creation_timestamp: u64,
 // TODO allocated memory data
 
 pub fn create_task(s: *@This(), entry: TaskEntry, stack: ?[]u8, priority: u8) !*Task {
-    errdefer |err| std.log.debug("!!! Failed to create task: {s}\n", .{@errorName(err)});
+    errdefer |err| log.debug("!!! Failed to create task: {s}", .{@errorName(err)});
 
     const tid: usize = b: {
 
@@ -97,7 +99,7 @@ pub fn create_task(s: *@This(), entry: TaskEntry, stack: ?[]u8, priority: u8) !*
 }
 
 fn enlarge_task_list(s: *@This()) !void {
-    errdefer |err| std.log.debug("Failed to enlarge task list: {s}\n", .{@errorName(err)});
+    errdefer |err| log.debug("Failed to enlarge task list: {s}", .{@errorName(err)});
 
     const new_size = @max(1, s.tasks.len + (std.math.divCeil(usize,s.tasks.len, 2) catch unreachable));
     const new_list = try allocator.alloc(?*Task, new_size);

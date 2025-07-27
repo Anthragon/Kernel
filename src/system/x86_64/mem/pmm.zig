@@ -2,6 +2,8 @@ const root = @import("root");
 const std = @import("std");
 const debug = root.debug;
 
+const log = std.log.scoped(.@"x86_64 PMM");
+
 const paging = @import("paging.zig");
 
 const units = root.utils.units.data;
@@ -66,7 +68,7 @@ pub fn setup() void {
             // cases but i prefer to ignore it
             if (i.base < 0x100000) continue;
 
-            std.log.debug("marking {X} .. {X} as free\n", .{ i.base, i.base + i.size});
+            log.debug("marking {X} .. {X} as free", .{ i.base, i.base + i.size});
 
             // Marking block as free
             blocks[next_free_block] = .{
@@ -81,7 +83,7 @@ pub fn setup() void {
             
         } else if (i.type == .framebuffer) {
             // I personally prefer have track of the framebuffer
-            std.log.debug("marking {X} .. {X} as framebuffer\n", .{ i.base, i.base + i.size});
+            log.debug("marking {X} .. {X} as framebuffer", .{ i.base, i.base + i.size});
 
             // Marking block as free
             blocks[next_free_block] = .{
@@ -98,7 +100,7 @@ pub fn setup() void {
             // Entry is not usable, but will be marked
             // as kernel
 
-            std.log.debug("marking {X} .. {X} as kernel\n", .{ i.base, i.base + i.size});
+            log.debug("marking {X} .. {X} as kernel", .{ i.base, i.base + i.size});
             blocks[next_free_block] = .{
                 .start = i.base / page_size,
                 .length = i.size / page_size,
@@ -113,7 +115,7 @@ pub fn setup() void {
             kernel_page_end = kernel_page_start + i.size / page_size;
 
         } else {
-            std.log.debug("skipping {X} .. {X} ({s})\n", .{ i.base, i.base + i.size, @tagName(i.type)});
+            log.debug("skipping {X} .. {X} ({s})", .{ i.base, i.base + i.size, @tagName(i.type)});
             continue;
         }
 
@@ -134,8 +136,8 @@ pub fn setup() void {
     const size_float: f64 = @floatFromInt(total_memory_bytes);
     const unit_float: f64 = @floatFromInt(units[i].size);
 
-    std.log.info("Total memory available: {d:.2} {s} ({} pages)\n", .{size_float / unit_float, units[i].name, total_memory_bytes / page_size});
-    std.log.debug("HHDM offset: {X}\n", .{hhdm_offset});
+    log.info("Total memory available: {d:.2} {s} ({} pages)", .{size_float / unit_float, units[i].name, total_memory_bytes / page_size});
+    log.debug("HHDM offset: {X}", .{hhdm_offset});
 
     paging.enumerate_paging_features();
 
@@ -151,27 +153,27 @@ pub fn setup() void {
     kernel_virt_start = std.mem.alignBackward(usize, boot_info.kernel_base_virtual, page_size);
     kernel_virt_end = std.mem.alignForward(usize, @intFromPtr(@extern(*u64, .{ .name = "__kernel_end__" })), page_size);
 
-    std.log.debug("\nphys base: {X: >16}", .{ kernel_phys });
-    std.log.debug("\nphys end:  {X: >16}", .{ kernel_phys + kernel_len });
-    std.log.debug("\nvirt base: {X: >16}", .{kernel_virt_start });
-    std.log.debug("\nvirt end:  {X: >16}\n", .{ kernel_virt_end });
+    log.debug("\nphys base: {X: >16}", .{ kernel_phys });
+    log.debug("\nphys end:  {X: >16}", .{ kernel_phys + kernel_len });
+    log.debug("\nvirt base: {X: >16}", .{kernel_virt_start });
+    log.debug("\nvirt end:  {X: >16}", .{ kernel_virt_end });
 
     // Creating identity map
     const idmap_len = std.math.shl(usize, 1, phys_mapping_range_bits);
-    std.log.debug("\nMarking identity map {x}..{x}...\n", .{hhdm_offset, hhdm_offset + idmap_len});
+    log.debug("\nMarking identity map {x}..{x}...", .{hhdm_offset, hhdm_offset + idmap_len});
     paging.map_range(0, hhdm_offset, idmap_len, atributes_ROX_privileged_fixed) catch unreachable;
 
     // Mapping kernel
-    std.log.debug("Marking kernel...\n", .{});
-    std.log.debug("\nmapping kernel range {x} .. {x} ({} pages) to {x}..{x}\n", .{
+    log.debug("Marking kernel...", .{});
+    log.debug("\nmapping kernel range {x} .. {x} ({} pages) to {x}..{x}", .{
         kernel_phys, kernel_phys + kernel_len, kernel_len / page_size, kernel_virt_start, kernel_virt_end});
     paging.map_range(kernel_phys, kernel_virt_start, kernel_len, atributes_ROX_privileged_fixed) catch unreachable;
 
-    std.log.debug("Commiting new map to CR3...\n", .{});
+    log.debug("Commiting new map to CR3...", .{});
     paging.commit_map();
     
-    std.log.info("\nOk theorically we are in our owm mem map now...\n", .{});
-    std.log.info("Nothing exploded yay :3...\n", .{});
+    log.info("\nOk theorically we are in our owm mem map now...", .{});
+    log.info("Nothing exploded yay :3...", .{});
 
     // allocating pmm final heap
     const pmm_heap = get_multiple_pages(16, .kernel_heap);
@@ -203,11 +205,11 @@ pub fn setup() void {
     });
 
     memory_blocks_root = &memory_blocks_buffer[0];
-    std.log.debug("Memory blocks final heap created\n", .{});
+    log.debug("Memory blocks final heap created", .{});
 }
 
 pub fn lsmemblocks() void {
-    std.log.info("\nPhysical Memory Blocks:\n", .{});
+    log.info("\nPhysical Memory Blocks:", .{});
 
     var free_pages: usize = 0;
     var used_pages: usize = 0;
@@ -215,13 +217,13 @@ pub fn lsmemblocks() void {
     var cur: ?*Block = memory_blocks_root;
     var last: ?*Block = null;
 
-    std.log.info("| Beguin     End        Length     Ptr              Length (bytes)   Status\n", .{});
-    std.log.info("|---------------------------------------------------------------------------------\n", .{});
+    log.info("| Beguin     End        Length     Ptr              Length (bytes)   Status", .{});
+    log.info("|---------------------------------------------------------------------------------", .{});
 
     while (cur != null) : ({last = cur; cur = cur.?.next;}) {
         if (cur.?.previous != last) break;
 
-        std.log.info("| {: >10} {: >10} {: >10} {x: >16} {: >16} {s}\n", .{
+        log.info("| {: >10} {: >10} {: >10} {x: >16} {: >16} {s}", .{
             cur.?.start,
             cur.?.start + cur.?.length,
             cur.?.length,
@@ -235,10 +237,10 @@ pub fn lsmemblocks() void {
         if (cur.?.status == .free) free_pages += cur.?.length else used_pages += cur.?.length;
     }
 
-    std.log.info("|---------------------------------------------------------------------------------\n", .{});
+    log.info("|---------------------------------------------------------------------------------", .{});
 
-    std.log.info("{} free pages\n", .{free_pages});
-    std.log.info("{} used pages\n\n", .{used_pages});
+    log.info("{} free pages", .{free_pages});
+    log.info("{} used pages\n", .{used_pages});
 }
 
 /// Allocates and returns a single page

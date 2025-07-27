@@ -48,8 +48,8 @@ pub fn init() !void {
     }
 }
 
-pub inline fn writer(dev: u8) SerialWriter {
-    return .{ .context = @ptrFromInt(dev + 1) };
+pub inline fn chardev(dev: u8) SerialWriter {
+    return .{ .context = @ptrFromInt(dev) };
 }
 
 fn serial_out(dev: *anyopaque, bytes: []const u8) !usize {
@@ -62,12 +62,10 @@ fn serial_out(dev: *anyopaque, bytes: []const u8) !usize {
 inline fn is_buffer_empty(dev: u8) bool {
     return (ports.inb(com_port[dev] + 5) & 0x20) != 0;
 }
-
 pub inline fn uart_putchar(dev: u8, char: u8) void {
     while (!is_buffer_empty(dev)) {}
     ports.outb(com_port[dev], char);
 }
-
 pub inline fn uart_puts(dev: u8, str: []const u8) void {
     for (str) |char| uart_putchar(dev, char);
 }

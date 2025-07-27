@@ -4,6 +4,8 @@ const sys = root.system;
 const debug = root.debug;
 const units = root.utils.units.data;
 
+const log = std.log.scoped(.@"devices Disk");
+
 const allocator = root.mem.heap.kernel_buddy_allocator;
 
 var disk_entry_list: []?DiskEntry = undefined;
@@ -48,9 +50,9 @@ pub fn append_device(
     const dev_dir = root.fs.get_root().branch("dev").value;
     _ = dev_dir.append(&entry.*.?.fs_node.node);
 
-    std.log.info("\nPrinting fs tree:\n", .{});
+    log.info("\nPrinting fs tree:", .{});
     root.fs.lsroot();
-    std.log.info("\n", .{});
+    log.info("", .{});
 
     return free_slot;
 }
@@ -71,7 +73,7 @@ pub fn lsblk() void {
             const size_float: f64 = @floatFromInt(size_bytes);
             const unit_float: f64 = @floatFromInt(units[j].size);
 
-            std.log.info("{: >4} : {s}  {d:.2} {s}\n",.{ i, entry.?.type, size_float/unit_float, units[j].name });
+            log.info("{: >4} : {s}  {d:.2} {s}",.{ i, entry.?.type, size_float/unit_float, units[j].name });
 
         }
     }

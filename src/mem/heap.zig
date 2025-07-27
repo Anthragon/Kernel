@@ -12,6 +12,7 @@ pub const kernel_page_allocator = root.system.vmm.PageAllocator;
 /// This is a abstraction above the `kernel_page_allocator` to be able to
 /// use it as a zig's PageAllocator
 const PageAllocator = struct {
+    const log = std.log.scoped(.page_allocator);
 
     const page_allocator_vtable: Allocator.VTable = .{
         .alloc = page_allocator_alloc,
@@ -25,13 +26,13 @@ const PageAllocator = struct {
 
         const addr = kernel_page_allocator.alloc(pages, alignment);
 
-        std.log.debug("Page Allocator: Allocation requested: {} bytes, aligned to {} ({} pages) -> {x}\n", .{
+        log.debug("Page Allocator: Allocation requested: {} bytes, aligned to {} ({} pages) -> {x}", .{
             len, alignment.toByteUnits(), pages, if (addr == null) 0 else @intFromPtr(addr.?)});
 
         return addr;
     }
     fn page_allocator_resize(_: *anyopaque, memory: []u8, alignment: Alignment, new_len: usize, _: usize) bool {
-        std.log.debug("Page Allocator: Resize requested: {} bytes\n", .{ new_len });
+        log.debug("Page Allocator: Resize requested: {} bytes", .{ new_len });
 
         _ = memory;
         _ = alignment;
@@ -39,7 +40,7 @@ const PageAllocator = struct {
         @panic("PA resize");
     }
     fn page_allocator_remap(_: *anyopaque, memory: []u8, alignment: Alignment, new_len: usize, _: usize) ?[*]u8 {
-        std.log.debug("Page Allocator: Allocation requested: {} bytes\n", .{ new_len });
+        log.debug("Page Allocator: Allocation requested: {} bytes", .{ new_len });
 
         _ = memory;
         _ = alignment;
@@ -47,7 +48,7 @@ const PageAllocator = struct {
         @panic("PA remap");
     }
     fn page_allocator_free(_: *anyopaque, memory: []u8, _: Alignment, _: usize) void {
-        std.log.debug("Page Allocator: Free requested\n", .{});
+        log.debug("Page Allocator: Free requested", .{});
 
         kernel_page_allocator.free(memory);
     }
