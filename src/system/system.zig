@@ -28,23 +28,27 @@ pub const serial = switch (arch) {
 
 /// Memory and pagination management
 pub const mem_paging = @import("paging.zig");
+/// Physical Memory Manager
 pub const pmm = switch (arch) {
     //.aarch64 => @import("aarchx64/asm.zig"),
     .x86_64 =>  @import("x86_64/mem/pmm.zig"),
     //.x86 =>     @import("x86/asm.zig"),
     else => unreachable
 };
+/// Virtual Memory Manager
 pub const vmm = @import("mem/vmm.zig");
 /// Interrupt management
 pub const interrupts = @import("interrupts.zig");
 
-/// Tasks and Theading
+// Tasks and Theading
+/// Task Context
 pub const TaskContext = switch (arch) {
     //.aarch64 => @import("aarchx64/asm.zig"),
     .x86_64 => @import("x86_64/taskContext.zig").TaskContext,
     //.x86 =>     @import("x86/asm.zig"),
     else => unreachable
 };
+/// Task Context Flags
 pub const TaskGeneralFlags = struct {
     carry: bool,
     zero: bool,
@@ -53,10 +57,12 @@ pub const TaskGeneralFlags = struct {
     interrupt: bool
 };
 
-/// Timing and timestamps
+/// Timing and timestamps \
+/// (mainly used by time service)
 pub const time = @import("time.zig");
 
 // Misc
+/// Quick assembly interface
 pub const assembly = switch (arch) {
     //.aarch64 => @import("aarchx64/asm.zig"),
     .x86_64 =>  @import("x86_64/asm/asm.zig"),
@@ -74,7 +80,9 @@ const general = switch (arch) {
     else => unreachable
 };
 
+/// System-Specific general initialization
 pub const init = general.init;
+/// System-Specific general initialization finalize
 pub const finalize = general.finalize;
 
 

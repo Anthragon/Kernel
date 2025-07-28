@@ -66,7 +66,8 @@ pub fn main(_boot_info: BootInfo) noreturn {
     // Printing hello world
     log.info("\nHello, World from {s}!", .{ @tagName(system.arch) });
  
-    log.debug("\n# Initializing OS specific", .{});
+    // Initializing kernel services
+    log.debug("\n# Initializing services", .{});
 
     modules.init();
 
@@ -77,12 +78,18 @@ pub fn main(_boot_info: BootInfo) noreturn {
     system.time.init();
     log.debug(" # All services ready!", .{});
 
-    // Setting up Adam
     log.debug("# Registring adam process and task...", .{});
+    // Setting up Adam process (process 0)
     const system_proc = threading.procman.get_process_from_pid(0).?;
+    // Setting up Adam task
+    // (It will override the stack being currently used)
     _ = system_proc.create_task(
         @import("adam.zig")._start,
-        @as([*]u8, @ptrFromInt(boot_info.kernel_stack_pointer_base - 0x1000))[0..0x1000],
+        @as([*]u8, @ptrFromInt(std.mem.alignForward(
+            usize,
+            boot_info.kernel_stack_pointer_base,
+            16
+        )))[0 .. 0x1000],
         255
     ) catch unreachable;
     log.debug(" # Adam is ready!", .{});

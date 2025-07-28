@@ -18,7 +18,7 @@ pub var kernel_heap_next_addr: usize = undefined;
 
 const DebugAllocator = std.heap.DebugAllocator(.{
     .thread_safe = false,
-    .verbose_log = true,
+    .verbose_log = false,
     .canary = 0x73626f6f62333c69,
     .stack_trace_frames = 0,
 });

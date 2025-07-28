@@ -50,7 +50,7 @@ pub export fn __boot_entry__() callconv(.C) noreturn {
     const rsdp = rsdp_request.response.?;
     var stbp: usize = undefined;
 
-    asm volatile ("mov %%rsp, %[out]" : [out] "=r" (stbp) ::);
+    asm volatile ("mov %%rbp, %[out]" : [out] "=r" (stbp) ::);
     
 
     const boot_info: boot.BootInfo = .{

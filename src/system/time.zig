@@ -1,3 +1,6 @@
+//! Time service \
+//! Provides some methods to retrieve current time
+
 const std = @import("std");
 const root = @import("root");
 const sys = root.system;
@@ -6,6 +9,8 @@ const log = std.log.scoped(.time);
 
 const debug = root.debug;
 
+/// Represents a date \
+/// (day, month, year)
 pub const Date = struct {
     day: u8,
     month: u8,
@@ -18,6 +23,8 @@ pub const Date = struct {
     }
 };
 
+/// Represents time \
+/// (hour, minutes, secconds)
 pub const Time = struct {
     seconds: u8,
     minutes: u8,
@@ -30,6 +37,8 @@ pub const Time = struct {
     }
 };
 
+/// Represents date and time \
+/// (date, month, year, hour, minutes, secconds)
 pub const DateTime = struct {
     // Date
     day: u8,
@@ -134,9 +143,13 @@ const internal = switch (sys.arch) {
 
 var elapsed_ticks: usize = 0; 
 
+// Secconds elapsed since january 1st, 1970
 pub const timestamp: fn () u64 = internal.timestamp;
+// Get current date
 pub const get_date: fn () Date = internal.get_date;
+// Get current time
 pub const get_time: fn () Time = internal.get_time;
+// Get current date and time
 pub const get_datetime: fn () DateTime = internal.get_datetime;
 
 /// The elapsed ticks since the start of the
@@ -147,10 +160,11 @@ pub fn get_elapsed_ticks() usize { return elapsed_ticks; }
 pub fn init() void {
     log.debug(" ## Setting up time service...", .{});
 
-    // 0x20 = 32
+    // This will handle the timer interrupt
     sys.interrupts.set_vector(0x20, timer_int, .kernel);
 }
 
+/// Handles the timer interrupt
 fn timer_int(f: *sys.TaskContext) void {
 
     elapsed_ticks += 1;
@@ -158,6 +172,7 @@ fn timer_int(f: *sys.TaskContext) void {
     // Check if timer conditions are reached
     // and execute
 
+    // Scheduling tasks each 3 ticks (around 3 ms)
     if (elapsed_ticks % 3 == 0)
         root.threading.scheduler.do_schedule(f);
 
