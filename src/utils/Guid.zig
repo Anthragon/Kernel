@@ -72,4 +72,7 @@ pub const Guid = packed struct {
 
         return Guid.fromSlice(&bytes) catch unreachable;
     }
+    pub inline fn zero() Guid {
+        return @bitCast(@as(u128, 0));
+    }
 };

@@ -18,7 +18,7 @@ var screeny: usize = 0;
 
 
 pub fn dumpStackTrace(ret_address: usize) void {
-    const writer = serial.writer(stderr);
+    const writer = serial.chardev(stderr);
 
     if (builtin.strip_debug_info) {
         writer.print("Unable to dump stack trace: debug info stripped\n", .{});
@@ -33,7 +33,7 @@ pub fn dumpStackTrace(ret_address: usize) void {
 }
 
 pub fn dumpHex(bytes: []const u8) void {
-    dumpHexInternal(bytes, tty_config, serial.writer(stdout)) catch {};
+    dumpHexInternal(bytes, tty_config, serial.chardev(stdout)) catch {};
     dumpHexInternal(bytes, tty_config, swriter()) catch {};
     redraw_screen();
 }
@@ -41,7 +41,7 @@ pub fn dumpHexErr(bytes: []const u8) void {
     dumpHexInternal(bytes, tty_config, serial.chardev(stderr)) catch {};
 }
 pub fn dumpHexFailable(bytes: []const u8) void {
-    try dumpHexInternal(bytes, tty_config, serial.writer(stdout));
+    try dumpHexInternal(bytes, tty_config, serial.chardev(stdout));
 }
 
 // Reimplementation of zig's `std.debug.dumpHexInternal`

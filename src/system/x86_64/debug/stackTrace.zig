@@ -1,29 +1,23 @@
+const std = @import("std");
 const pmm = @import("../mem/pmm.zig");
 
-pub fn dumpStackTrace(return_address: usize, writer: anytype) void {
+pub fn dumpStackTrace(frame_addr: usize, writer: anytype) void {
 
-    //var rbp: ?usize = return_address;
-    //const kstart = pmm.kernel_page_start * 4096;
-    //const kend = pmm.kernel_page_end * 4096;
+    var frame =  frame_addr;
 
     writer.print("<===addr===>\n", .{}) catch unreachable;
 
-    writer.print("{X}\n", .{return_address}) catch unreachable;
+    // ignore first frame as it will refer to `root.panic()`
+    frame = @as(*usize, @ptrFromInt(frame)).*;
 
-    // while (rbp != null) {
-    //     var i: usize = 0;
+    while (frame != 0) {
+        const last_frame: usize = @as(*usize, @ptrFromInt(frame)).*;
+        const return_ptr: usize = @as(*usize, @ptrFromInt(frame + 8)).*;
 
-    //     const return_addr: usize = @as(*align(1) const usize, @ptrFromInt(rbp.? + @sizeOf(usize)*2)).*;
-    //     const base_addr: usize =   @as(*align(1) const usize, @ptrFromInt(rbp.? + @sizeOf(usize)*1)).*;
+        writer.print("{X}\n", .{return_ptr}) catch unreachable;
 
-    //     writer.print("{X} {X}\n", .{base_addr, return_addr}) catch unreachable;
-
-    //     if (return_addr < kstart or return_addr > kend) break;
-    //     rbp = base_addr;
-
-    //     i += 1;
-    //     if (i > 100) break;
-    // }
+        frame = last_frame;
+    }
 
     writer.print("<===addr===/>\n", .{}) catch unreachable;
 

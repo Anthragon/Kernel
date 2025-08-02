@@ -19,7 +19,8 @@ pub const auth = @import("auth/auth.zig");
 pub const threading = @import("threading/threading.zig");
 /// Modules and drivers management
 pub const modules = @import("modules/modules.zig");
-
+/// Capabilities system
+pub const capabilities = @import("capabilities/capabilities.zig");
 /// Debug helper script
 pub const debug = @import("debug/debug.zig");
 /// Utils and help scripts
@@ -69,13 +70,14 @@ pub fn main(_boot_info: BootInfo) noreturn {
     // Initializing kernel services
     log.debug("\n# Initializing services", .{});
 
-    modules.init();
-
     fs.init();
     auth.init();   
+    modules.init();
     devices.init();       
     threading.init();
     system.time.init();
+    capabilities.init();
+
     log.debug(" # All services ready!", .{});
 
     log.debug("# Registring adam process and task...", .{});
@@ -123,8 +125,16 @@ pub inline fn get_boot_info() BootInfo {
     return boot_info;
 }
 
+/// General Out Of Memory panic \
+/// In the future, maybe it can be used to do some
+/// specific subroutine and allows to recover the
+/// system execution. For now, it will just generate
+/// a kernel panic.
+pub fn oom_panic() noreturn {
+    @panic("OOM");
+}
 var panicked: bool = false;
-pub fn panic(msg: []const u8, _: ?*std.builtin.StackTrace, return_address: ?usize) noreturn {
+pub fn panic(msg: []const u8, _: ?*std.builtin.StackTrace, _: ?usize) noreturn {
     if (panicked) {
         std.log.info("", .{});
         std.log.info("!--------------------------------------------------!", .{});
@@ -147,15 +157,9 @@ pub fn panic(msg: []const u8, _: ?*std.builtin.StackTrace, return_address: ?usiz
         _ = dalloc.?.deinit();
     }
 
-    if (return_address) |ret| {
-
-        std.log.info("\nStack Trace in stderr", .{});
-        std.log.debug("\nStack Trace:", .{});
-        _ = ret;//debug.dumpStackTrace(ret);
-
-    } else {
-        std.log.info("No Stack Trace", .{});
-    }
+    std.log.info("\nStack Trace in stderr", .{});
+    std.log.debug("\nStack Trace:\n", .{});
+    debug.dumpStackTrace(@frameAddress());
 
     panicked = false;
     system.assembly.halt();
