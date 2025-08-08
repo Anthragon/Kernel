@@ -26,11 +26,11 @@ fn logFn(
     args: anytype,
 ) void {
 
-    var content_buf: [1024]u8 = undefined;
+    var content_buf: [2048]u8 = undefined;
 
     const content = std.fmt.bufPrint(&content_buf, format, args) catch b: {
         const msg = "...[too long]\n";
-        @memcpy(content_buf[1024-msg.len..], msg);
+        @memcpy(content_buf[2048-msg.len..], msg);
         break :b &content_buf;
     };
 
