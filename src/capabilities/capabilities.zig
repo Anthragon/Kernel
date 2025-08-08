@@ -17,21 +17,13 @@ var capabilities_all: std.AutoArrayHashMapUnmanaged(Guid, *Node) = .empty;
 
 const ArenaAllocator = std.heap.ArenaAllocator;
 
-var state: ArenaAllocator.State = undefined;
 var arena: ArenaAllocator = undefined;
 var allocator: std.mem.Allocator = undefined;
 
 pub fn init() void {
 
-    state = .{};
-    arena = state.promote(allocator);
+    arena = .init(kernel_allocator);
     allocator = arena.allocator();
-
-    //std.log.info("{X}\n", .{@intFromPtr(&arena)});
-    //const ptr: [*]u8 = @ptrCast(@alignCast(&arena));
-    //root.debug.dumpHex(ptr[0 .. @sizeOf(std.heap.ArenaAllocator)]);
-
-    std.log.info("{}", .{ arena });
 
     const kernel_node = create_resource_internal(Guid.zero(), null, "Kernel") 
         catch @panic("ParentIsNotResource");

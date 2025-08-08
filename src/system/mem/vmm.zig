@@ -22,7 +22,7 @@ const DebugAllocator = std.heap.DebugAllocator(.{
     .canary = 0x73626f6f62333c69,
     .stack_trace_frames = 0,
 });
-var debug_allocator: ?DebugAllocator = null;
+pub var debug_allocator: ?DebugAllocator = null;
 
 
 pub fn get_debug_allocator_controller() ?DebugAllocator {
@@ -36,13 +36,7 @@ pub fn init() void {
 
     log.debug("Heap start located at {x}", .{ kernel_heap_start });
 
-    var gpa: Allocator = undefined;
-
     debug_allocator = .init;
-    gpa = debug_allocator.?.allocator();
-
-    // // Crimes here! // //
-    const target = @constCast(&root.mem.heap.kernel_buddy_allocator);
-    target.* = gpa;
 
 }
+

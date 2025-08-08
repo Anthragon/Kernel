@@ -6,7 +6,8 @@ const Alignment = mem.Allignment;
 
 const debug = root.debug;
 
-pub const kernel_buddy_allocator: Allocator = undefined;
+/// This is an simplier and direct interface to the real page allocator.
+/// Use it it you need some pages!
 pub const kernel_page_allocator = root.system.vmm.PageAllocator;
 
 /// This is a abstraction above the `kernel_page_allocator` to be able to
@@ -58,3 +59,33 @@ pub const page_allocator: Allocator = .{
     .ptr = undefined,
     .vtable = &PageAllocator.page_allocator_vtable
 };
+
+
+pub const kernel_buddy_allocator: Allocator = .{
+    .ptr = undefined,
+    .vtable = &kernel_buddy_allocator_vtable,
+};
+const kernel_buddy_allocator_vtable: Allocator.VTable = .{
+    .alloc = wrapper_alloc,
+    .resize = wrapper_resize,
+    .remap = wrapper_remap,
+    .free = wrapper_free,
+};
+
+
+fn wrapper_alloc(_: *anyopaque, len: usize, alignment: Alignment, ret_addr: usize) ?[*]u8 {
+    const alloc = root.system.vmm.debug_allocator.?.allocator();
+    return alloc.vtable.alloc(alloc.ptr, len, alignment, ret_addr);
+}
+fn wrapper_resize(_: *anyopaque, memory: []u8, alignment: Alignment, new_len: usize, ret_addr: usize) bool {
+    const alloc = root.system.vmm.debug_allocator.?.allocator();
+    return alloc.vtable.resize(alloc.ptr, memory, alignment, new_len, ret_addr);
+}
+fn wrapper_remap(_: *anyopaque, memory: []u8, alignment: Alignment, new_len: usize, ret_addr: usize) ?[*]u8 {
+    const alloc = root.system.vmm.debug_allocator.?.allocator();
+    return alloc.vtable.remap(alloc.ptr, memory, alignment, new_len, ret_addr);
+}
+fn wrapper_free(_: *anyopaque, memory: []u8, alignment: Alignment, ret_addr: usize) void {
+    const alloc = root.system.vmm.debug_allocator.?.allocator();
+    return alloc.vtable.free(alloc.ptr, memory, alignment, ret_addr);
+}
