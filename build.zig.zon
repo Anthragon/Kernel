@@ -1,11 +1,12 @@
 .{
-    .name = .SElva_kernel_core,
+    .name = .galvan_core,
     .version = "0.0.0",
 
     .dependencies = .{
-        .elvaAHCI = .{ .path = "../modules/elvaAHCI" },
-        .elvaDisk = .{ .path = "../modules/elvaDisk" },
-        .elvaFAT = .{ .path = "../modules/elvaFAT" },
+        .lumiPCI = .{ .path = "../modules/lumiPCI" },
+        .lumiAHCI = .{ .path = "../modules/lumiAHCI" },
+        .lumiDisk = .{ .path = "../modules/lumiDisk" },
+        .lumiFAT = .{ .path = "../modules/lumiFAT" },
     },
 
     .paths = .{

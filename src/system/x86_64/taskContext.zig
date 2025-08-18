@@ -79,6 +79,16 @@ pub const TaskContext = extern struct {
         s.rsp = @as(u64, value);
         s.rbp = @as(u64, value);
     }
+    pub inline fn get_stack_ptr(s: *@This()) usize {
+        return s.rsp;
+    }
+
+    pub inline fn set_frame_base(s: *@This(), value: usize) void {
+        s.rbp = value;
+    }
+    pub inline fn get_frame_base(s: *@This()) usize {
+        return s.rbp;
+    }
 
     pub fn set_arg(s: *@This(), value: usize, arg: usize) void {
         switch (arg) {

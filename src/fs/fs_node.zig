@@ -33,21 +33,17 @@ pub const FsNode = extern struct {
     iterable: bool,
 
     /// The custom context of the node
-    ctx: ?*anyopaque,
+    ctx: *anyopaque,
 
     /// Hook for the node's virtual functions
     vtable: *const FsNodeVtable,
 
     pub fn append(s: *@This(), node: *FsNode) callconv(.c) Result(void) {
-        if (s.ctx == null) return .err(.nullContext);
-
-        return s.vtable.append_node(s.ctx.?, node);
+        return s.vtable.append_node(s.ctx, node);
     }
     pub fn branch(s: *@This(), path: [*:0]const u8) callconv(.c) Result(*FsNode) {
-        if (s.ctx == null) return .err(.nullContext);
-
         if (!s.iterable) return .err(.notIterable);
-        if (s.vtable.branch) |b| return b(s.ctx.?, path); 
+        if (s.vtable.branch) |b| return b(s.ctx, path); 
 
         // Default branching
         // FIXME verify if this function is realy reliable
@@ -73,7 +69,6 @@ pub const FsNode = extern struct {
         return q.branch(path[j..]);
     }
     pub fn get_iterator(s: *@This()) callconv(.c) Result(NodeIterator) {
-        if (s.ctx == null) return .err(.nullContext);
         if (!s.iterable) return .err(.notIterable);
 
         return .val(.{ .node = s });
@@ -85,7 +80,7 @@ pub const NodeIterator = extern struct {
     index: usize = 0,
 
     pub fn next(s: *@This()) ?*FsNode {
-        var ret = s.node.vtable.get_child(s.node.ctx.?, s.index);
+        var ret = s.node.vtable.get_child(s.node.ctx, s.index);
         s.index += 1;
         return if (ret.unwrap()) |v| v else null;
     }

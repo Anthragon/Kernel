@@ -10,9 +10,11 @@ pub fn dumpStackTrace(frame_addr: usize, writer: anytype) void {
     // ignore first frame as it will refer to `root.panic()`
     frame = @as(*usize, @ptrFromInt(frame)).*;
 
-    while (frame != 0) {
+    while (true) {
         const last_frame: usize = @as(*usize, @ptrFromInt(frame)).*;
         const return_ptr: usize = @as(*usize, @ptrFromInt(frame + 8)).*;
+
+        if (last_frame == 0 or return_ptr == 0) break;
 
         writer.print("{X}\n", .{return_ptr}) catch unreachable;
 

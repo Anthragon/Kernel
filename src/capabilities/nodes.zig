@@ -41,6 +41,23 @@ pub const Node = struct {
 
         return instance;
     }
+
+    pub fn deinit(s: *@This(), allocator: std.mem.Allocator) void {
+        allocator.free(s.name);
+        allocator.destroy(s);
+    }
+
+    pub fn branch(s: *@This(), path: []const u8) ?*Node {
+        var slice = std.mem.tokenizeAny(u8, path, ".");
+        return s.branch_internal(&slice);
+    }
+    fn branch_internal(s: *@This(), iter: *std.mem.TokenIterator(u8, .any)) ?*Node {
+        if (s.data != .resource) return null;
+        const curr = iter.next() orelse return null;
+        const child = s.data.resource.children.get(curr) orelse return null;
+        if (iter.peek() == null) return child;
+        return child.branch_internal(iter);
+    }
 };
 
 const Resource = struct {
@@ -49,6 +66,6 @@ const Resource = struct {
 
 const Field = *anyopaque;
 
-const Callable = *const fn (...) callconv(.c) Result(usize);
+const Callable = *const anyopaque;
 
 const Event = events.Event;

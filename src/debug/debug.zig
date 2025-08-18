@@ -16,18 +16,22 @@ var screen_buffer: [screen_width * screen_height]u8 = undefined;
 var screenx: usize = 0;
 var screeny: usize = 0;
 
+var locked_frame: usize = 0;
 
 pub fn dumpStackTrace(ret_address: usize) void {
     const writer = serial.chardev(stderr);
 
+    const real_ret_addr = if (locked_frame == 0) ret_address else locked_frame;
+
     if (builtin.strip_debug_info) {
-        writer.print("Unable to dump stack trace: debug info stripped\n", .{});
+        writer.print("Unable to dump stack trace: debug info stripped\n", .{}) catch unreachable;
         return;
     }
 
+    writer.print("Stack trace:\n\n", .{}) catch unreachable;
     // I hate my life
     switch (root.system.arch) {
-        .x86_64 => @import("../system/x86_64/debug/stackTrace.zig").dumpStackTrace(ret_address, writer),
+        .x86_64 => @import("../system/x86_64/debug/stackTrace.zig").dumpStackTrace(real_ret_addr, writer),
         else => unreachable,
     }
 }
@@ -84,6 +88,13 @@ fn dumpHexInternal(bytes: []const u8, ttyconf: std.io.tty.Config, writer: anytyp
 
         try writer.writeByte('\n');
     }
+}
+
+pub inline fn lock_frame(frame: usize) void {
+    locked_frame = frame;
+}
+pub inline fn unlock_frame() void {
+    locked_frame = 0;
 }
 
 // Screen things

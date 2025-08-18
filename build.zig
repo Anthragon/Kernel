@@ -58,13 +58,15 @@ pub fn build(b: *std.Build) void {
 
 
     // TODO add dependences dinamically
-    const elva_ahci = b.dependency("elvaAHCI", .{}).module("elvaAHCI");
-    const elva_disk = b.dependency("elvaDisk", .{}).module("elvaDisk");
-    const elva_fat = b.dependency("elvaFAT", .{}).module("elvaFAT");
+    const lumi_pci = b.dependency("lumiPCI", .{}).module("lumiPCI");
+    const lumi_ahci = b.dependency("lumiAHCI", .{}).module("lumiAHCI");
+    const lumi_disk = b.dependency("lumiDisk", .{}).module("lumiDisk");
+    const lumi_fat = b.dependency("lumiFAT", .{}).module("lumiFAT");
 
-    kernel_mod.addImport("elvaAHCI_module", elva_ahci);
-    kernel_mod.addImport("elvaDisk_module", elva_disk);
-    kernel_mod.addImport("elvaFAT_module", elva_fat);
+    kernel_mod.addImport("lumiPCI_module", lumi_pci);
+    kernel_mod.addImport("lumiAHCI_module", lumi_ahci);
+    kernel_mod.addImport("lumiDisk_module", lumi_disk);
+    kernel_mod.addImport("lumiFAT_module", lumi_fat);
 
 
     // kernel executable

@@ -10,9 +10,10 @@ const log = std.log.scoped(.adam);
 // than root was! - Terry A. Davis
 
 const builtin_modules = .{
-    @import("elvaAHCI_module"),
-    @import("elvaDisk_module"),
-    @import("elvaFAT_module"),
+    @import("lumiPCI_module"),
+    @import("lumiAHCI_module"),
+    @import("lumiDisk_module"),
+    @import("lumiFAT_module"),
 };
 
 pub fn _start(args: ?*anyopaque) callconv(.c) noreturn {

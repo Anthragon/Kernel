@@ -33,22 +33,16 @@ pub fn append_device(
 
     const entry = &disk_entry_list[free_slot];
     entry.* = .{
+        .global_identifier = "",
+
         .context = ctx,
         
-        .fs_node = undefined,
-
         .sectors_length = seclen,
         .vtable = vtable
     };
     if (devtype != null) entry.*.?.type = devtype.?;
 
-    const lower_str = allocator.alloc(u8, entry.*.?.type.len) catch @panic("OOM");
-    _ = std.ascii.lowerString(lower_str, entry.*.?.type);
-
-    entry.*.?.fs_node = .init(lower_str, free_slot, allocator);
-
-    const dev_dir = root.fs.get_root().branch("dev").value;
-    _ = dev_dir.append(&entry.*.?.fs_node.node);
+    //const dev_dir = root.fs.get_root().branch("dev").value;
 
     log.info("\nPrinting fs tree:", .{});
     root.fs.lsroot();
@@ -57,8 +51,16 @@ pub fn append_device(
     return free_slot;
 }
 
-pub fn get_disk_by_idx(index: usize) ?DiskEntry {
+pub fn get_disk_by_index(index: usize) ?DiskEntry {
     return disk_entry_list[index];
+}
+pub fn get_disk_by_id(id: [:0]const u8) ?DiskEntry {
+    
+    for (disk_entry_list) |i| if (i) |disk| {
+        if (std.mem.eql(u8, disk.global_identifier, id)) return disk;
+    };
+    return null;
+
 }
 
 pub fn lsblk() void {
@@ -88,16 +90,13 @@ pub const DiskEntry = struct {
         write: ReadWriteHook,
         remove: RemoveHook,
     };
-    const default_type: []const u8 = "UNK";
-
-    /// Disk file node
-    fs_node: root.fs.default_nodes.DiskEntry,
+    const default_type: []const u8 = "unk";
 
     /// Pointer to the guest context
     context: *anyopaque,
 
     /// The readable type name of the device
-    /// e.g. `flash`, `CD`, `SSD`, `HHD`, `nVME`
+    /// e.g. `flash`, `cd`, `ssd`, `hhd`, `nvme`
     type: []const u8 = default_type,
 
     /// The disk length in sectors of 512 bytes
@@ -106,6 +105,50 @@ pub const DiskEntry = struct {
     /// Virtual functions table associated with this
     /// entry
     vtable: *const VTable,
+
+    /// Disk's global identifier string
+    /// e.g. disk's uuid in GPT disks
+    global_identifier: []const u8,
+
+    /// Disk's partition entries
+    partitions_entry: []? PartitionEntry = undefined,
+
+    /// Performs a read operation
+    pub fn read(s: @This(), sector: usize, buffer: []u8) !void {
+        const ok = s.vtable.read(s.context, sector, buffer.ptr, buffer.len);
+        if (!ok) return error.CannotRead;
+    }
+
+};
+pub const PartitionEntry = struct {
+
+    pub const ReadWriteHook = *const fn (ctx: *anyopaque, sector: usize, buffer: [*]u8, length: usize) callconv(.c) bool;
+    pub const RemoveHook = *const fn (ctx: *anyopaque) callconv(.c) void;
+    pub const VTable = extern struct {
+        read: ReadWriteHook,
+        write: ReadWriteHook,
+        remove: RemoveHook,
+    };
+    const default_name: []const u8 = "undefined";
+
+    /// Pointer to the guest context
+    context: *anyopaque,
+
+    /// The readable name of the partition
+    name: []const u8 = default_name,
+
+    /// The partition data begguin in sectors of 512 bytes
+    sectors_begguin: usize,
+    /// The partition data length in sectors of 512 bytes
+    sectors_length: usize,
+
+    /// Virtual functions table associated with this
+    /// entry
+    vtable: *const VTable,
+
+    /// Partitions's global identifier string
+    /// e.g. partition's uuid in GPT disks
+    global_identifier: []const u8,
 
     /// Performs a read operation
     pub fn read(s: @This(), sector: usize, buffer: []u8) !void {

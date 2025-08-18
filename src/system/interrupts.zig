@@ -29,7 +29,9 @@ fn unhandled_interrupt(frame: *TaskContext) void {
 pub fn interrupt_handler(int_frame: *TaskContext) void {
     int_frame.intnum &= 0xFF;
     //log.info("Branching to interrupt {X:0>2}...", .{int_frame.intnum});
+    debug.lock_frame(int_frame.get_frame_base());
     interrupts[int_frame.intnum](int_frame);
+    debug.unlock_frame();
 }
 
 // Allocates a not used interrupt and returns it number

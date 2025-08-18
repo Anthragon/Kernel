@@ -9,7 +9,7 @@ pub const system = @import("system/system.zig");
 pub const mem = @import("mem/mem.zig");
 /// Simple CPU-based graphics library
 pub const gl = @import("gl/gl.zig");
-/// SystemElva File System interface
+/// Galvan File System interface
 pub const fs = @import("fs/fs.zig");
 /// Devices management
 pub const devices = @import("devices/devices.zig");
@@ -103,8 +103,6 @@ pub fn main(_boot_info: BootInfo) noreturn {
     log.info("", .{});
     log.info("Time: {} ({})", .{ system.time.get_datetime(), system.time.timestamp() });
     log.info("", .{});
-    devices.pci.lspci();
-    log.info("", .{});
     auth.lsusers();
     log.info("", .{});
     threading.procman.lsproc();
@@ -158,7 +156,6 @@ pub fn panic(msg: []const u8, _: ?*std.builtin.StackTrace, _: ?usize) noreturn {
     }
 
     std.log.info("\nStack Trace in stderr", .{});
-    std.log.debug("\nStack Trace:\n", .{});
     debug.dumpStackTrace(@frameAddress());
 
     panicked = false;

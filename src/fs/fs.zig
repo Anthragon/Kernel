@@ -10,29 +10,29 @@ pub const Result = interop.Result;
 pub const default_nodes = @import("default_nodes.zig");
 
 const kernel_allocator = root.mem.heap.kernel_buddy_allocator;
-const allocator = kernel_allocator;
-//var arena: std.heap.ArenaAllocator = undefined;
-//var allocator: std.mem.Allocator = undefined;
+var arena: std.heap.ArenaAllocator = undefined;
+var allocator: std.mem.Allocator = undefined;
 
-var fs_root: default_nodes.VirtualDirectory = undefined;
-var fs_dev: default_nodes.VirtualDirectory = undefined;
+var fs_root: *default_nodes.VirtualDirectory = undefined;
 
 
 pub fn init() void {
     log.debug(" ## Setting up file system service...", .{});
 
-    //arena = .init(kernel_allocator);
-    //allocator = arena.allocator();
+    arena = .init(kernel_allocator);
+    allocator = arena.allocator();
 
     // Creating root node
-    fs_root = default_nodes.VirtualDirectory.init("root", allocator);
-    fs_root.set_context();
+    fs_root = default_nodes.VirtualDirectory.init("root");
 
     // Creating dev node
-    fs_dev = default_nodes.VirtualDirectory.init("dev", allocator);
-    fs_dev.set_context();
+    var fs_dev = default_nodes.VirtualDirectory.init("dev");
     _ = fs_root.node.append(&fs_dev.node);
 
+}
+
+pub inline fn get_fs_allocator() std.mem.Allocator {
+    return allocator;
 }
 
 pub fn get_root() *FsNode {
@@ -52,6 +52,11 @@ pub fn lsdir(node: *FsNode) void {
 /// Dumps all the file system
 pub fn lsroot() void {
 
+    var buffer: std.ArrayList(u8) = .init(allocator);
+    defer buffer.deinit();
+
+    const writer = buffer.writer();
+
     const Entry = struct {
         iter: FsNode.FsNodeIterator,
         level: usize,
@@ -63,19 +68,19 @@ pub fn lsroot() void {
     stack.append(allocator, .{
         .iter = iterator.value,
         .level = 0,
-    }) catch @panic("OOM");
+    }) catch root.oom_panic();
 
     while (stack.items.len > 0) {
         var last = &stack.items[stack.items.len - 1];
 
         if (last.iter.next()) |node| {
 
-            for (0..last.level) |_| log.info("  ", .{});
+            for (0..last.level) |_| writer.writeAll("  ") catch unreachable;
 
             if (node.iterable) {
-                log.info("{s: <20} {s}", .{ node.name, node.type });
+                writer.print("{s: <20} {s}", .{ node.name, node.type }) catch unreachable;
             } else {
-                log.info("{s: <20} {s}", .{ node.name, node.type });
+                writer.print("{s: <20} {s}", .{ node.name, node.type }) catch unreachable;
             }
 
             if (node.iterable) {
@@ -87,7 +92,7 @@ pub fn lsroot() void {
                     .{
                         .iter = v,
                         .level = last.level + 1,
-                    }) catch @panic("OOM");
+                    }) catch root.oom_panic();
                 }
             }
 
@@ -95,5 +100,7 @@ pub fn lsroot() void {
         else _ = stack.pop();
 
     }
+
+    log.info("{s}", .{ buffer.items });
 
 }

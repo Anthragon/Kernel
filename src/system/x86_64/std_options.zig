@@ -35,7 +35,7 @@ fn logFn(
     };
 
     const header = std.fmt.comptimePrint(
-        "[ {s: <20} {s: <5} ] ", 
+        "[ {s: <15} {s: <5} ] ", 
         .{@tagName(scope),
         @tagName(message_level)}
     );
