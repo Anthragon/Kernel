@@ -11,10 +11,12 @@ const log = std.log.scoped(.adam);
 
 const builtin_modules = .{
     @import("lumiPCI_module"),
-    @import("lumiAHCI_module"),
     @import("lumiDisk_module"),
+    @import("lumiAHCI_module"),
     @import("lumiFAT_module"),
 };
+
+var is_dirty = false;
 
 pub fn _start(args: ?*anyopaque) callconv(.c) noreturn {
     _ = args;
@@ -22,9 +24,6 @@ pub fn _start(args: ?*anyopaque) callconv(.c) noreturn {
     log.info("\nHello, Adam!", .{});
 
     // Running the build-in core drivers
-
-    // TODO implement loading modules list from 
-    // build options
 
     inline for (builtin_modules) |mod| {
         _ = modules.register_module(
@@ -68,8 +67,25 @@ pub fn _start(args: ?*anyopaque) callconv(.c) noreturn {
             }
             
             log.info("Initialization done; Module {s} status: {s}", .{module.name, @tagName(module.status)});
+
+            is_dirty = true;
+
+        }
+        else if (is_dirty) {
+
+            const lsblk: *const fn() callconv(.c) void = @ptrCast((root.capabilities.get_node("Devices.MassStorage.lsblk") orelse unreachable).data.callable);
+            const lspci: *const fn() callconv(.c) void = @ptrCast((root.capabilities.get_node("Devices.PCI.lspci") orelse unreachable).data.callable);
+            
+            log.info("", .{});
+            lsblk();
+            log.info("", .{});
+            lspci();
+            log.info("", .{});
+
+            is_dirty = false;
         }
 
     }
+
     unreachable;
 }

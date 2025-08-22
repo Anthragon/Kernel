@@ -27,11 +27,11 @@ pub fn init() void {
     arena = .init(kernel_allocator);
     allocator = arena.allocator();
 
-    const kernel_node = create_resource_internal(
+    const kernel_node = create_resource(
         Guid.fromString("645fc46e-ec52-4f0b-a748-bee542baf1bf") catch unreachable,
         null, "Kernel") catch unreachable;
 
-    const devices_node = create_resource_internal(
+    const devices_node = create_resource(
         Guid.fromString("753d870c-e51b-40d2-96b9-beb3bfa8cd02") catch unreachable,
         null, "Devices") catch unreachable;
 
@@ -40,16 +40,26 @@ pub fn init() void {
 
 }
 
-/// Provides a zig interface for retrieving a node though it uuid
-pub fn get_node_by_guid_internal(guid: Guid) ?*Node {
+/// Provides a zig interface for retrieving a node though its uuid
+pub fn get_node_by_guid(guid: Guid) ?*Node {
     return capabilities_all.get(guid);
 }
-/// Provides a zig interface for retrieving a node tough it path
-pub fn get_node_internal(path: []const u8) ?*Node {
+/// Provides away to retrieving a node though its uuid
+pub fn c__get_node_by_guid(guid: u128) callconv(.c) ?*Node {
+    return get_node_by_guid(@bitCast(guid));
+}
+
+/// Provides a zig interface for retrieving a node tough its path
+pub fn get_node(path: []const u8) ?*Node {
     return capabilities_root.branch(path);
 }
-/// Provides a zig interface for retrieving the capabilities root
-pub fn get_root_internal() *Node {
+/// Returns a node by its path
+pub fn c__get_node(path: [*:0]const u8) callconv(.c) ?*Node {
+    return get_node(std.mem.sliceTo(path, 0));
+}
+
+/// Returns the capabilities root
+pub fn get_root() callconv(.c) *Node {
     return &capabilities_root;
 }
 
@@ -57,41 +67,40 @@ pub fn get_root_internal() *Node {
 fn create_new_node(guid: Guid, parent: ?*Node, name: []const u8) !*Node {
 
     const real_parent: *Node = parent orelse &capabilities_root;
-    const real_guid: Guid = if (guid.isZero()) Guid.new() else guid;
 
     if (real_parent.data != .resource) return error.ParentIsNotResource;
-    if (capabilities_all.contains(real_guid)) return error.NodeGuidAlreadyExists;
+    if (!guid.isZero() and capabilities_all.contains(guid)) return error.NodeGuidAlreadyExists;
     if (real_parent.data.resource.children.contains(name)) return error.NodeNameAlreadyExists;
 
-    const nn = Node.create(allocator, real_parent, real_guid, name) catch root.oom_panic();
+    const nn = Node.create(allocator, real_parent, guid, name) catch root.oom_panic();
     
     real_parent.data.resource.children.put(allocator, name, nn) catch root.oom_panic();
-    capabilities_all.put(allocator, nn.guid, nn) catch root.oom_panic();
+    if (!guid.isZero()) capabilities_all.put(allocator, nn.guid, nn) catch root.oom_panic();
 
     return nn;
 
 }
 
 /// Provides a zig interface for creating a new resource in the capabilities tree
-pub fn create_resource_internal(guid: Guid, parent: ?*Node, name: []const u8) !*Node {
+pub fn create_resource(guid: Guid, parent: ?*Node, name: []const u8) !*Node {
     const nn = try create_new_node(guid, parent, name);
     nn.data = .{ .resource = .{ .children = .empty } };
     return nn;
 }
 /// Provides a zig interface for creating a new callable in the capabilities tree
-pub fn create_callable_internal(parent: ?*Node, name: []const u8, callable: *const anyopaque) !*Node {
+pub fn create_callable(parent: ?*Node, name: []const u8, callable: *const anyopaque) !*Node {
     const nn = try create_new_node(.zero(), parent, name);
     nn.data = .{ .callable = callable };
     return nn;
 }
 /// Provides a zig interface for creating a new field pointer in the capabilities tree
-pub fn create_field_ptr_internal(parent: ?*Node, name: []const u8, ptr: *anyopaque) !*Node {
+pub fn create_field_pointer(parent: ?*Node, name: []const u8, ptr: *anyopaque) !*Node {
     const nn = try create_new_node(.zero(), parent, name);
     nn.data = .{ .field = ptr };
     return nn;
 }
 // Provides a zig interface for creating a new event in the capabilities tree
-pub fn create_event_internal(
+pub fn create_event(
     parent: ?*Node,
     name: []const u8,
     bind: Event.EventOnBindCallback,

@@ -71,12 +71,15 @@ fn write_log_message(out: bool, err: bool, scr: bool, content: []const u8) void 
     if (scr) debug.swriter().writeAll(content) catch unreachable;
 }
 
+// TODO use system sensors for generating entropy
+
+var step_entropy: usize = 0;
 fn criptoRandomSeed(buffer: []u8) void {
 
     const timestamp = root.system.time.timestamp();
     const io_entropy = ports.inb(0x40);
 
-    var seed = timestamp ^ (@as(u64, io_entropy) << 56);
+    var seed = timestamp ^ (@as(u64, io_entropy) << 56) ^ step_entropy;
 
     for (buffer, 0..) |*b, i| {
         seed ^= seed >> 12;
@@ -86,4 +89,6 @@ fn criptoRandomSeed(buffer: []u8) void {
 
         b.* = @truncate(std.math.shr(usize, seed, (i & 7)));
     }
+
+    step_entropy +%= seed;
 }
