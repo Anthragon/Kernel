@@ -1,4 +1,5 @@
 const std = @import("std");
+const lib = @import("lib");
 const BootInfo = boot.BootInfo;
 
 /// Boot information structures
@@ -23,10 +24,11 @@ pub const modules = @import("modules/modules.zig");
 pub const capabilities = @import("capabilities/capabilities.zig");
 /// Debug helper script
 pub const debug = @import("debug/debug.zig");
+
 /// Utils and help scripts
-pub const utils = @import("utils/utils.zig");
+pub const utils = lib.utils;
 /// Interoperability help scripts
-pub const interop = @import("interop/interop.zig");
+pub const interop = lib.interop;
 
 /// Field that allow zig interfaces to comunicate
 /// with the kernel. Do not mind.
@@ -70,13 +72,14 @@ pub fn main(_boot_info: BootInfo) noreturn {
     // Initializing kernel services
     log.debug("\n# Initializing services", .{});
 
+    capabilities.init(); // Capabilities must aways initialize first!
+
     fs.init();
     auth.init();   
     modules.init();
     devices.init();       
     threading.init();
     system.time.init();
-    capabilities.init();
 
     log.debug(" # All services ready!", .{});
 

@@ -6,6 +6,8 @@ const modules = root.modules;
 const debug = root.debug;
 const log = std.log.scoped(.adam);
 
+const allocator = root.mem.heap.kernel_buddy_allocator;
+
 // Adam is a better term for the first father of all tasks
 // than root was! - Terry A. Davis
 
@@ -16,10 +18,10 @@ const builtin_modules = .{
     @import("lumiFAT_module"),
 };
 
-var is_dirty = false;
-
 pub fn _start(args: ?*anyopaque) callconv(.c) noreturn {
     _ = args;
+
+    const boot_info = root.get_boot_info();
 
     log.info("\nHello, Adam!", .{});
 
@@ -39,9 +41,45 @@ pub fn _start(args: ?*anyopaque) callconv(.c) noreturn {
     }
 
     log.info("{} built in modules registred!", .{ builtin_modules.len });
+    log.info("initializing {} build in modules...", .{ builtin_modules.len });
 
-    threading.procman.lstasks();
-    modules.lsmodules();
+    while (modules.has_waiting_modules()) {
+        const module = modules.get_next_waiting_module().?;
+        log.info("Initializing module {s}...", .{module.name});
+
+        const res = module.init();
+
+        if (res) {
+            log.debug("Module {s} initialized successfully!", .{module.name});
+            module.status = .Active;
+        } else {
+            log.debug("Module {s} failed to initialize!", .{module.name});
+            module.status = .Failed;
+        }
+        
+        log.info("Initialization done; Module {s} status: {s}", .{module.name, @tagName(module.status)});
+    }
+
+    _random_infodump();
+
+    log.info("Mounting root file system:", .{});
+    switch (boot_info.boot_device) {
+        .mbr => |_| @panic("Not implemented!"),
+        .gpt => |gpt| {
+            log.info("    Disk's uuid: {}", .{gpt.disk_uuid});
+            log.info("    Part's uuid: {}", .{gpt.part_uuid});
+
+            const disk_buf = std.fmt.allocPrintZ(allocator, "{}", .{gpt.disk_uuid}) catch root.oom_panic();
+            const part_buf = std.fmt.allocPrintZ(allocator, "{}", .{gpt.part_uuid}) catch root.oom_panic();
+            defer {
+                allocator.free(disk_buf);
+                allocator.free(part_buf);
+            }
+
+            root.fs.mount_disk_by_identifier_part_by_identifier(disk_buf.ptr, part_buf.ptr);
+        },
+        //else => unreachable,
+    }
 
     log.info("Entering in sleep mode... zzz\n", .{});
 
@@ -50,42 +88,24 @@ pub fn _start(args: ?*anyopaque) callconv(.c) noreturn {
     // TODO implement a proper sleep function
     // that will allow the system to enter a low power state
     // and wake up on an event
-    while (true) {
-
-        if (modules.has_waiting_modules()) {
-            const module = modules.get_next_waiting_module().?;
-            log.info("Initializing module {s}...", .{module.name});
-
-            const res = module.init();
-
-            if (res) {
-                log.debug("Module {s} initialized successfully!", .{module.name});
-                module.status = .Active;
-            } else {
-                log.debug("Module {s} failed to initialize!", .{module.name});
-                module.status = .Failed;
-            }
-            
-            log.info("Initialization done; Module {s} status: {s}", .{module.name, @tagName(module.status)});
-
-            is_dirty = true;
-
-        }
-        else if (is_dirty) {
-
-            const lsblk: *const fn() callconv(.c) void = @ptrCast((root.capabilities.get_node("Devices.MassStorage.lsblk") orelse unreachable).data.callable);
-            const lspci: *const fn() callconv(.c) void = @ptrCast((root.capabilities.get_node("Devices.PCI.lspci") orelse unreachable).data.callable);
-            
-            log.info("", .{});
-            lsblk();
-            log.info("", .{});
-            lspci();
-            log.info("", .{});
-
-            is_dirty = false;
-        }
-
-    }
-
+    while (true) {}
     unreachable;
+}
+
+fn _random_infodump() void {
+
+    const lsblk: *const fn() callconv(.c) void = @ptrCast((root.capabilities.get_node("Devices.MassStorage.lsblk") orelse unreachable).data.callable);
+    const lspci: *const fn() callconv(.c) void = @ptrCast((root.capabilities.get_node("Devices.PCI.lspci") orelse unreachable).data.callable);
+            
+    log.info("\nStage 2: Adam's debug info:\n", .{});
+    threading.procman.lstasks();
+    log.info("", .{});
+    modules.lsmodules();
+    log.info("", .{});
+    lsblk();
+    log.info("", .{});
+    lspci();
+    log.info("", .{});
+    root.capabilities.lscaps();
+
 }

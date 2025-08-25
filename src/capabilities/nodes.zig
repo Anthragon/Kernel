@@ -52,7 +52,9 @@ pub const Node = struct {
         return s.branch_internal(&slice);
     }
     fn branch_internal(s: *@This(), iter: *std.mem.TokenIterator(u8, .any)) ?*Node {
+
         if (s.data != .resource) return null;
+
         const curr = iter.next() orelse return null;
         const child = s.data.resource.children.get(curr) orelse return null;
         if (iter.peek() == null) return child;
@@ -61,7 +63,7 @@ pub const Node = struct {
 };
 
 const Resource = struct {
-    children: std.StringHashMapUnmanaged(*Node),
+    children: std.StringArrayHashMapUnmanaged(*Node),
 };
 
 const Field = *anyopaque;

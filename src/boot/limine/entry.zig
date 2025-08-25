@@ -10,9 +10,12 @@ pub export var memory_map_request: limine.MemoryMapRequest = .{};
 pub export var kernel_addr_request: limine.KernelAddressRequest = .{};
 pub export var hhdm_request: limine.HhdmRequest = .{};
 pub export var rsdp_request: limine.RsdpRequest = .{};
+pub export var kfile_request: limine.KernelFileRequest = .{};
 
 pub export fn __boot_entry__() callconv(.C) noreturn {
     
+    // Tiny subroutine to make sure some main
+    // CPU extra features are enabled
     switch (root.system.arch) {
         .x86_64 => {
             // Forcefully active common CPU features
@@ -34,12 +37,14 @@ pub export fn __boot_entry__() callconv(.C) noreturn {
         else => {}
     }
 
+    if (!base_revision.is_supported()) done();
     if (framebuffer_request.response == null) done();
     if (framebuffer_request.response.?.framebuffer_count < 1) done();
     if (memory_map_request.response == null) done();
     if (kernel_addr_request.response == null) done();
     if (hhdm_request.response == null) done();
     if (rsdp_request.response == null) done();
+    if (kfile_request.response == null) done();
 
     const fbuffer = framebuffer_request.response.?.framebuffers_ptr[0];
     const fbuffer_size = fbuffer.pitch * fbuffer.height;
@@ -52,6 +57,20 @@ pub export fn __boot_entry__() callconv(.C) noreturn {
 
     asm volatile ("mov %%rbp, %[out]" : [out] "=r" (stbp) ::);
     
+    const kfile = kfile_request.response.?.kernel_file;
+    const boot_device: boot.BootDevice = b: {
+        if (kfile.mbr_disk_id != 0) {
+            break :b .{ .mbr = .{
+                .disk_id = kfile.mbr_disk_id,
+                .partition_index = kfile.partition_index,
+            }};
+        } else {
+            break :b .{ .gpt = .{
+                .disk_uuid = @bitCast(kfile.gpt_disk_uuid),
+                .part_uuid = @bitCast(kfile.gpt_part_uuid),
+            }};
+        }
+    };
 
     const boot_info: boot.BootInfo = .{
         .kernel_base_physical = addr.physical_base,
@@ -67,7 +86,9 @@ pub export fn __boot_entry__() callconv(.C) noreturn {
             .pps = fbuffer.pitch
         },
 
-        .memory_map = @ptrCast(mmap.entries_ptr[0..mmap.entry_count])
+        .memory_map = @ptrCast(mmap.entries_ptr[0..mmap.entry_count]),
+
+        .boot_device = boot_device,
     };
 
     root.main(boot_info);

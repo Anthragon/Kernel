@@ -1,6 +1,11 @@
+const root = @import("root");
+const Guid = root.utils.Guid;
+
 pub const BootInfo = struct {
     framebuffer: Framebuffer,
     memory_map: []*MemoryMapEntry,
+
+    boot_device: BootDevice,
 
     kernel_stack_pointer_base: usize,
     kernel_base_virtual: usize,
@@ -33,4 +38,16 @@ pub const RegionType = enum(u64) {
     bootloader_reclaimable = 5,
     kernel_and_modules = 6,
     framebuffer = 7,
+};
+
+pub const BootDeviceTag = enum { mbr, gpt };
+pub const BootDevice = union(BootDeviceTag) {
+    mbr: struct {
+        disk_id: usize,
+        partition_index: usize,
+    },
+    gpt: struct {
+        disk_uuid: Guid,
+        part_uuid: Guid,
+    },
 };
