@@ -16,13 +16,10 @@ pub const std_options = switch(arch) {
 // IO
 pub const ports = switch (arch) {
     .x86_64 => @import("x86_64/ports.zig"),
-    .aarch64 => @panic("IO ports not available for " ++ arch ++ "!"),
     else => unreachable
 };
 pub const serial = switch (arch) {
-    .aarch64 => @import("aarchx64/serial.zig"),
     .x86_64 =>  @import("x86_64/serial.zig"),
-    .x86 =>     @import("x86/serial.zig"),
     else => unreachable
 };
 
@@ -30,9 +27,7 @@ pub const serial = switch (arch) {
 pub const mem_paging = @import("paging.zig");
 /// Physical Memory Manager
 pub const pmm = switch (arch) {
-    //.aarch64 => @import("aarchx64/asm.zig"),
     .x86_64 =>  @import("x86_64/mem/pmm.zig"),
-    //.x86 =>     @import("x86/asm.zig"),
     else => unreachable
 };
 /// Virtual Memory Manager
@@ -43,9 +38,7 @@ pub const interrupts = @import("interrupts.zig");
 // Tasks and Theading
 /// Task Context
 pub const TaskContext = switch (arch) {
-    //.aarch64 => @import("aarchx64/asm.zig"),
     .x86_64 => @import("x86_64/taskContext.zig").TaskContext,
-    //.x86 =>     @import("x86/asm.zig"),
     else => unreachable
 };
 /// Task Context Flags
@@ -64,9 +57,7 @@ pub const time = @import("time.zig");
 // Misc
 /// Quick assembly interface
 pub const assembly = switch (arch) {
-    //.aarch64 => @import("aarchx64/asm.zig"),
     .x86_64 =>  @import("x86_64/asm/asm.zig"),
-    //.x86 =>     @import("x86/asm.zig"),
     else => unreachable
 };
 
@@ -74,9 +65,7 @@ pub const assembly = switch (arch) {
 /// Specific system routines
 /// for each archtecture
 const general = switch (arch) {
-    .aarch64 => @import("aarchx64/general.zig"),
     .x86_64 =>  @import("x86_64/general.zig"),
-    .x86 =>     @import("x86/general.zig"),
     else => unreachable
 };
 
