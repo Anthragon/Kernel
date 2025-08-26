@@ -68,7 +68,7 @@ pub fn setup() void {
             // cases but i prefer to ignore it
             if (i.base < 0x100000) continue;
 
-            log.debug("[mem {X:0>8}..{X:0>8}] free", .{ i.base, i.base + i.size});
+            log.debug("[mem {X:0>16}..{X:0>16}] free", .{ i.base, i.base + i.size});
 
             // Marking block as free
             blocks[next_free_block] = .{
@@ -83,7 +83,7 @@ pub fn setup() void {
             
         } else if (i.type == .framebuffer) {
             // I personally prefer have track of the framebuffer
-            log.debug("[mem {X:0>8}..{X:0>8}] framebuffer", .{ i.base, i.base + i.size});
+            log.debug("[mem {X:0>16}..{X:0>16}] framebuffer", .{ i.base, i.base + i.size});
 
             // Marking block as free
             blocks[next_free_block] = .{
@@ -100,7 +100,7 @@ pub fn setup() void {
             // Entry is not usable, but will be marked
             // as kernel
 
-            log.debug("[mem {X:0>8}..{X:0>8}] kernel", .{ i.base, i.base + i.size});
+            log.debug("[mem {X:0>16}..{X:0>16}] kernel", .{ i.base, i.base + i.size});
             blocks[next_free_block] = .{
                 .start = i.base / page_size,
                 .length = i.size / page_size,
@@ -115,7 +115,7 @@ pub fn setup() void {
             kernel_page_end = kernel_page_start + i.size / page_size;
 
         } else {
-            log.debug("[mem {X:0>8}..{X:0>8}] skipped ({s})", .{ i.base, i.base + i.size, @tagName(i.type)});
+            log.debug("[mem {X:0>16}..{X:0>16}] skipped ({s})", .{ i.base, i.base + i.size, @tagName(i.type)});
             continue;
         }
 

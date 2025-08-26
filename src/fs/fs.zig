@@ -7,7 +7,7 @@ const interop = lib.interop;
 const log = std.log.scoped(.fs);
 
 pub const FsNode = @import("fs_node.zig").FsNode;
-pub const FileSystemEntry = @import("FileSystemEntry.zig").FileSystemEntry;
+pub const FileSystemEntry = lib.FileSystemEntry;
 pub const default_nodes = @import("default_nodes.zig");
 
 pub const Result = interop.Result;
@@ -60,6 +60,9 @@ pub fn get_root() *FsNode {
 fn append_file_system(entry: FileSystemEntry) callconv(.c) Result(void) {
     if (entry.name == null) return .err(.nullArgument);
     const slice = std.mem.sliceTo(entry.name.?, 0);
+
+    log.debug("Appending {s} file system", .{slice});
+
     if (fileSystems.contains(slice)) return .err(.nameAlreadyUsed);
     fileSystems.put(allocator, slice, entry) catch root.oom_panic();
     return .retvoid();
@@ -75,10 +78,15 @@ pub fn mount_disk(disk: *anyopaque) void {
     _ = disk;
 }
 pub fn mount_part(part: *anyopaque) void {
-    log.info("Mounting partition {x}", .{ @intFromPtr(part) });
+    log.debug("Mounting partition...", .{});
+
+    const fs = get_partition_fs(part) orelse @panic("No compatible file system found!");
+    log.debug("Mounting with {s}...", .{fs.name orelse "-"});
+    fs.vtable.mount(part);
+
 }
 pub fn mount_disk_by_identifier_part_by_identifier(disk: [*:0]const u8, part: [*:0]const u8) callconv(.c) void {
-    log.info("mount requested - {s} : {s}", .{ disk, part });
+    log.debug("mount requested - {s} : {s}", .{ disk, part });
 
     const getdbipbi: *const fn ([*:0]const u8, [*:0]const u8) callconv(.c) ?*anyopaque = 
         @ptrCast(@alignCast((root.capabilities.get_node("Devices.MassStorage.get_disk_by_identifier_part_by_identifier")
@@ -89,6 +97,18 @@ pub fn mount_disk_by_identifier_part_by_identifier(disk: [*:0]const u8, part: [*
     mount_part(partitionEntry.?);
 }
 
+fn get_partition_fs(part: *anyopaque) ?FileSystemEntry {
+
+    for (fileSystems.values()) |i| {
+        log.debug("Testing {s}...", .{i.name.?});
+
+        const res = i.vtable.scan(part);
+        if (res) return i;
+
+    }
+    return null;
+
+}
 
 
 /// Dumps the content of the `node` directory

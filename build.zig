@@ -16,7 +16,7 @@ pub fn build(b: *std.Build) void {
         .ofmt = .elf,
     };
 
-    const target = b.standardTargetOptions(.{});
+    //const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
     switch (target_arch) {
@@ -42,9 +42,9 @@ pub fn build(b: *std.Build) void {
     }
 
     // Kernel library
-    const lib_mod = b.addModule("lib", .{
+    const kernel_lib = b.addModule("lib", .{
         .root_source_file = b.path("lib/root.zig"),
-        .target = target,
+        .target = b.resolveTargetQuery(core_target),
         .optimize = optimize,
     });
 
@@ -65,8 +65,6 @@ pub fn build(b: *std.Build) void {
     kernel_mod.strip = false;
     kernel_mod.single_threaded = true;
 
-    kernel_mod.addImport("lib", lib_mod);
-
     // TODO add dependences dinamically
     const lumi_pci = b.dependency("lumiPCI", .{}).module("lumiPCI");
     const lumi_ahci = b.dependency("lumiAHCI", .{}).module("lumiAHCI");
@@ -78,6 +76,7 @@ pub fn build(b: *std.Build) void {
     kernel_mod.addImport("lumiDisk_module", lumi_disk);
     kernel_mod.addImport("lumiFAT_module", lumi_fat);
 
+    kernel_mod.addImport("lib", kernel_lib);
 
     // kernel executable
     const kernel_exe = b.addExecutable(.{

@@ -10,12 +10,12 @@ var pps: usize = 0;
 var font_width: usize = 0;
 var font_height: usize = 0;
 
-var char_height: usize = 0;
-var char_width: usize = 0;
+pub var char_height: usize = 0;
+pub var char_width: usize = 0;
 
-const clear_color = Pixel.rgb(0, 0, 100);
+const clear_color = Pixel.rgb(0, 0, 0);
 const fg_color = Pixel.rgb(200, 200, 200);
-const bg_color = Pixel.rgb(80, 80, 100);
+const bg_color = Pixel.rgb(0, 0, 0);
 
 const font: [2][]const u8 = .{
     @embedFile("assets/bitfont.bf"),
@@ -47,8 +47,8 @@ pub fn init(fb: []u8, w: usize, h: usize, p: usize) void {
     font_width = std.mem.readInt(u32, font[0][0..4], .big);
     font_height = std.mem.readInt(u32, font[0][4..8], .big);
 
-    char_width = @min(100, @divFloor(width - 60, font_width));
-    char_height = @divFloor(height - 60, font_height);
+    char_width = @min(200, @divFloor(width - font_width*2, font_width));
+    char_height = @min(50, @divFloor(height - font_height*2, font_height));
 
     log.info(
         \\
@@ -63,12 +63,35 @@ pub fn init(fb: []u8, w: usize, h: usize, p: usize) void {
 var char_x: usize = 0;
 var char_y: usize = 0;
 pub fn clear() void {
-    const fbaslong = @as([*]u64, @ptrCast(@alignCast(framebuffer.ptr)))[0 .. framebuffer.len / 2];
-    const ccaslong: u64 = (@as(u64, @intCast(@as(u32, @bitCast(clear_color)))) << 32) | @as(u32, @bitCast(clear_color));
+    const fb_ptr = framebuffer.ptr;
+    const len: usize = framebuffer.len;
 
-    for (0..width / 2) |x| {
-        for (0..height) |y| fbaslong[x + y * (pps / 2)] = ccaslong;
+    const blocks: usize = len / 4;
+    const col: u32 = @bitCast(clear_color);
+
+    if (blocks != 0) {
+        asm volatile (
+            \\ movl   %[color], %eax
+            \\ movd   %eax, %xmm0
+            \\ pshufd $0x00, %xmm0, %xmm0
+            \\ movq   %[blocks], %rcx
+            \\ movq   %[dst], %rdi
+            \\ 1:
+            \\   movdqu %xmm0, (%rdi)
+            \\   addq   $16, %rdi
+            \\   decq   %rcx
+            \\   jne    1b
+            :
+            : [dst]  "r" (fb_ptr),
+              [blocks] "r" (blocks),
+              [color] "r" (col)
+            : "rax","rcx","rdi","xmm0","memory","cc"
+        );
     }
+
+    var start_tail: usize = blocks * 4;
+    while (start_tail < len) : (start_tail += 1) fb_ptr[start_tail] = clear_color;
+
     char_x = 0;
     char_y = 0;
 }
@@ -78,21 +101,53 @@ pub fn draw_char(c: u8) void {
 
     const char_base = font[1][0x10 + (c * 2 * font_height) ..];
 
-    const gx = char_x * font_width + 30;
-    const gy = char_y * font_height + 30;
+    const gx = char_x * font_width + font_width;
+    const gy = char_y * font_height + font_height;
 
     for (0..font_height) |y| {
-        const c_line = std.mem.readInt(u16, char_base[y * 2 ..][0..2], .big);
+        const hi = @as(u16, char_base[y * 2 + 0]);
+        const lo = @as(u16, char_base[y * 2 + 1]);
+        var c_line: u16 = (hi << 8) | lo;
 
-        for (0..font_width) |x| {
-            framebuffer[gx + x + (gy + y) * pps] =
-                if ((std.math.shr(u16, c_line, 16 - x) & 1) != 0) fg_color else bg_color;
+        const dst_index = gx + (gy + y) * pps;
+        const dst_ptr: [*]Pixel = framebuffer[dst_index..].ptr;
+
+        if (font_width < 16) {
+            const shift: u5 = @intCast(16 - font_width);
+            c_line = @intCast((@as(u32, c_line) >> shift) << shift);
         }
+
+        @memset(dst_ptr[0..font_width], bg_color);
+
+        asm volatile (
+            \\ movl    %[mask], %eax
+            \\ movl    %[fg], %edx
+            \\ movq    %[dst], %rbx
+            \\ testl   %eax, %eax
+            \\ jz      2f
+            \\
+            \\ 1:
+            \\   bsfl   %eax, %ecx
+            \\   btrl   %ecx, %eax
+            \\   movl   $15, %esi
+            \\   subl   %ecx, %esi
+            \\   leaq   (%rbx,%rsi,4), %rdi
+            \\   movl   %edx, (%rdi)
+            \\   testl  %eax, %eax
+            \\   jnz    1b
+            \\ 2:
+            :
+            : [dst]  "r" (dst_ptr),
+              [fg]   "r" (fg_color),
+              [mask] "r" (@as(u32, c_line))
+            : "rax","rbx","rcx","rdx","rdi","rsi","memory","cc"
+        );
     }
 
     char_x += 1;
 }
-pub fn set_cursor_pos(x: usize, y: usize) void {
+
+pub inline fn set_cursor_pos(x: usize, y: usize) void {
     char_x = x;
     char_y = y;
 }

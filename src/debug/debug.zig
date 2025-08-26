@@ -10,8 +10,8 @@ const tty_config: std.io.tty.Config = .no_color;
 const stdout = 1;
 const stderr = 2;
 
-const screen_width = 150;
-const screen_height = 45;
+const screen_width = 200;
+const screen_height = 50;
 var screen_buffer: [screen_width * screen_height]u8 = undefined;
 var screenx: usize = 0;
 var screeny: usize = 0;
@@ -44,7 +44,7 @@ pub fn dumpHex(bytes: []const u8) void {
 pub fn dumpHexErr(bytes: []const u8) void {
     dumpHexInternal(bytes, tty_config, serial.chardev(stderr)) catch {};
 }
-pub fn dumpHexFailable(bytes: []const u8) void {
+pub fn dumpHexFailable(bytes: []const u8) !void {
     try dumpHexInternal(bytes, tty_config, serial.chardev(stdout));
 }
 
@@ -104,20 +104,24 @@ pub inline fn swriter() ScreenWriter {
     return .{ .context = undefined };
 }
 fn screen_out(_: *anyopaque, bytes: []const u8) !usize {
+    const gl = root.gl;
+
     for (bytes) |e| {
         if (e == '\n') {
             screenx = 0;
             screeny += 1;
-            if (screeny >= screen_height) push_lines_up();
+            if (screeny >= gl.char_height) push_lines_up();
         } else if (e == '\r') {
             screenx = 0;
+        } else if (e == '\t') {
+            screenx = std.mem.alignForward(usize, screenx, 4);
         } else {
             screen_buffer[screenx + screeny * screen_width] = e;
             screenx += 1;
-            if (screenx >= screen_width) {
+            if (screenx >= gl.char_width) {
                 screenx = 0;
                 screeny += 1;
-                if (screeny >= screen_height) push_lines_up();
+                if (screeny >= gl.char_height) push_lines_up();
             }
         }
     }
@@ -133,15 +137,15 @@ fn push_lines_up() void {
 pub fn redraw_screen() void {
     const gl = root.gl;
 
-    for (0..screen_height) |y| {
+    for (0..gl.char_height) |y| {
         gl.set_cursor_pos(0, y);
 
         var x: usize = 0;
-        while (x < screen_width) : (x += 1) {
+        while (x < gl.char_width) : (x += 1) {
             const c = screen_buffer[x + y * screen_width];
             if (c == 0) break;
             gl.draw_char(c);
         }
-        while (x < screen_width) : (x += 1) gl.draw_char(' ');
+        while (x < gl.char_width) : (x += 1) gl.draw_char(' ');
     }
 }

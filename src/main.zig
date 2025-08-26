@@ -1,5 +1,5 @@
 const std = @import("std");
-const lib = @import("lib");
+pub const lib = @import("lib");
 const BootInfo = boot.BootInfo;
 
 /// Boot information structures
