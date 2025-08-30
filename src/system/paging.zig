@@ -66,3 +66,6 @@ pub const map_range = sys_paging.map_range;
 
 pub const unmap_single_page = sys_paging.unmap_single_page;
 pub const unmap_range = sys_paging.unmap_range;
+
+pub const physFromVirt = sys_paging.phys_from_virt;
+pub const physFromPtr = sys_paging.phys_from_ptr;

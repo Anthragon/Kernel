@@ -52,7 +52,7 @@ pub fn set_current_map(map: MapPtr) void {
 pub fn load_commited_map() void {
     var cr3_val: Cr3Value = ctrl_regs.read(.cr3);
     const phys = cr3_val.get_phys_addr();
-    current_map = pmm.PtrFromPhys(Table(PML45), phys);
+    current_map = pmm.ptrFromPhys(Table(PML45), phys);
     log.info("Loaded commited page table 0x{X} ({X})", .{phys, @intFromPtr(current_map)});
 }
 // Active the currently loaded memory map
@@ -83,17 +83,17 @@ pub fn lsmemmap() void {
     for (current_map.?, 0..) |*cmap, i| if (cmap.present) {
         log.info("PML4E {: >3} - {s11}{x:0>12} - {}", .{i, if (i < 256) "0000" else "ffff", i<<39, cmap});
 
-        const page_dir_ptr: Table(PDPTE) = pmm.PtrFromPhys(Table(PDPTE), cmap.get_phys_addr());
+        const page_dir_ptr: Table(PDPTE) = pmm.ptrFromPhys(Table(PDPTE), cmap.get_phys_addr());
         for (page_dir_ptr, 0..) |*pdp, j| if (pdp.present) {
             log.info("\tPDPTE {: >3} - {s11}{x:0>12} - {}", .{j, if (i < 256) "0000" else "ffff", (i<<39)|(j<<30), pdp});
             if (pdp.is_gb_page) continue;
 
-            const page_dir: Table(PDE) = pmm.PtrFromPhys(Table(PDE), pdp.get_phys_addr());
+            const page_dir: Table(PDE) = pmm.ptrFromPhys(Table(PDE), pdp.get_phys_addr());
             for (page_dir, 0..) |*pd, k| if (pd.present) {
                 log.info("\t\tPDPE  {: >3} - {s11}{x:0>12} - {}", .{k, if (i < 256) "0000" else "ffff", (i<<39)|(j<<30)|(k<<21), pd});
                 if (pd.is_mb_page) continue;
 
-                const page_table: Table(PTE) = pmm.PtrFromPhys(Table(PTE), pd.get_phys_addr());
+                const page_table: Table(PTE) = pmm.ptrFromPhys(Table(PTE), pd.get_phys_addr());
                 for (page_table, 0..) |*pt, l| if (pt.present) {
                     log.info("\t\t\tPTE   {: >3} - {s11}{x:0>12} - {}", .{l, if (i < 256) "0000" else "ffff", (i<<39)|(j<<30)|(k<<21)|(l<<12), pt});
                 };
@@ -293,6 +293,44 @@ fn create_page_table(comptime T: type, entry: anytype) !Table(T) {
     @memset(std.mem.asBytes(ptr), 0);
     return ptr;
 }
+
+pub fn phys_from_ptr(ptr: anytype) ?usize {
+    return phys_from_virt(@intFromPtr(ptr));
+}
+pub fn phys_from_virt(vaddr: usize) ?usize {
+    const split: SplitPagingAddr = @bitCast(vaddr);
+
+    var pml4: Table(PML45) = current_map orelse return null;
+    var pml4e: *PML45 = &pml4[split.dirptr];
+    if (!pml4e.present) return null;
+    var pdpt: Table(PDPTE) = pmm.ptrFromPhys(Table(PDPTE), pml4e.get_phys_addr());
+
+    var pdpte: *PDPTE = &pdpt[split.directory];
+    if (!pdpte.present) return null;
+    if (pdpte.is_gb_page) {
+        const phys_base = pdpte.get_phys_addr();
+        const offset = vaddr & ((1 << 30) - 1);
+        return phys_base + offset;
+    }
+
+    var pd: Table(PDE) = pmm.ptrFromPhys(Table(PDE), pdpte.get_phys_addr());
+    var pde: *PDE = &pd[split.table];
+    if (!pde.present) return null;
+    if (pde.is_mb_page) {
+        const phys_base = pde.get_phys_addr();
+        const offset = vaddr & ((1 << 21) - 1);
+        return phys_base + offset;
+    }
+
+    var pt: Table(PTE) = pmm.ptrFromPhys(Table(PTE), pde.get_phys_addr());
+    var pte: *PTE = &pt[split.page];
+    if (!pte.present) return null;
+
+    const phys_base = pte.get_phys_addr();
+    const offset = vaddr & ((1 << 12) - 1);
+    return phys_base + offset;
+}
+
 
 // Structures and structures related data _________________________________________-
 const AccessMode = enum(u1) {

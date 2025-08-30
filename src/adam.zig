@@ -74,7 +74,8 @@ pub fn _start(args: ?*anyopaque) callconv(.c) noreturn {
                 allocator.free(part_buf);
             }
 
-            root.fs.mount_disk_by_identifier_part_by_identifier(disk_buf.ptr, part_buf.ptr);
+            const root_node = root.fs.mount_disk_by_identifier_part_by_identifier(disk_buf.ptr, part_buf.ptr);
+            root.fs.chroot(root_node);
         },
         //else => unreachable,
     }

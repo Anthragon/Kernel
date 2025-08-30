@@ -62,12 +62,15 @@ pub const PartitionEntry = extern struct {
 
 
     /// Performs a read operation, offsetted to the partition base
-    pub fn read(s: *@This(), sector: usize, buffer: []u8) !void {
-        if (sector + s.start_sector > s.end_sector) return false;
+    pub fn read(s: *const @This(), sector: usize, buffer: []u8) !void {
+        if (sector + s.start_sector > s.end_sector) {
+            @import("std").log.err("{}", .{ sector });
+            return error.OutOfBounds;
+        }
         try s.disk_parent.read(s.start_sector + sector, buffer);
     }
     /// Performs a read operation, offsetted to the partition base (C compatibility version)
-    pub fn c_read(s: *@This(), sector: usize, buf_ptr: [*]u8, buf_len: usize) callconv(.c) bool {
+    pub fn c_read(s: *const @This(), sector: usize, buf_ptr: [*]u8, buf_len: usize) callconv(.c) bool {
         if (sector + s.start_sector > s.end_sector) return false;
         s.disk_parent.read(s.start_sector + sector, buf_ptr[0..buf_len]) catch return false;
         return true;

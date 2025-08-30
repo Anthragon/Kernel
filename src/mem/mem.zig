@@ -12,6 +12,8 @@ pub const heap = @import("heap.zig");
 pub const pmm = root.system.pmm;
 /// Virtual memory manager
 pub const vmm = root.system.vmm;
+// Paging manager
+pub const paging = root.system.mem_paging;
 
 pub const ptrFromPhys = pmm.ptrFromPhys;
 pub const physFromPtr = pmm.physFromPtr;

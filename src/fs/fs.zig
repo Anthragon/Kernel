@@ -81,16 +81,16 @@ fn remove_file_system(name: ?[*:0]const u8) callconv(.c) void {
 pub fn mount_disk(disk: *anyopaque) void {
     _ = disk;
 }
-pub fn mount_part(part: *PartEntry) void {
+pub fn mount_part(part: *PartEntry) *FsNode {
     log.debug("Mounting partition...", .{});
 
     const fs = get_partition_fs(part) orelse @panic("No compatible file system found!");
     log.debug("Mounting with {s}...", .{fs.name orelse "-"});
     part.file_system = fs;
-    fs.vtable.mount(part);
+    return fs.vtable.mount(part);
 
 }
-pub fn mount_disk_by_identifier_part_by_identifier(disk: [*:0]const u8, part: [*:0]const u8) callconv(.c) void {
+pub fn mount_disk_by_identifier_part_by_identifier(disk: [*:0]const u8, part: [*:0]const u8) callconv(.c) *FsNode {
     log.debug("mount requested - {s} : {s}", .{ disk, part });
 
     const getdbipbi: *const fn ([*:0]const u8, [*:0]const u8) callconv(.c) ?*lib.common.PartEntry = 
@@ -98,7 +98,7 @@ pub fn mount_disk_by_identifier_part_by_identifier(disk: [*:0]const u8, part: [*
         orelse @panic("Callable not found!")).data.callable));
     
     const entry = getdbipbi(disk, part) orelse @panic("Trying to mount a null partition entry!");
-    mount_part(entry);
+    return mount_part(entry);
 }
 
 fn get_partition_fs(part: *PartEntry) ?*FileSystemEntry {
