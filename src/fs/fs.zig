@@ -3,22 +3,24 @@ const lib = @import("lib");
 const root = @import("root");
 const debug = root.debug;
 const interop = lib.interop;
+const fsroot = @import("fsroot.zig");
 
 const log = std.log.scoped(.fs);
 
-pub const FsNode = @import("fs_node.zig").FsNode;
-pub const FileSystemEntry = lib.FileSystemEntry;
-pub const default_nodes = @import("default_nodes.zig");
+pub const FileSystemEntry = lib.common.FileSystemEntry;
+pub const DiskEntry = lib.common.DiskEntry;
+pub const PartEntry = lib.common.PartEntry;
+pub const FsNode = lib.common.FsNode;
 
+pub const default_nodes = @import("default_nodes.zig");
 pub const Result = interop.Result;
 
 var arena: std.heap.ArenaAllocator = undefined;
 var allocator: std.mem.Allocator = undefined;
 
-var fs_root: *default_nodes.VirtualDirectory = undefined;
 var fs_resource: *root.capabilities.Node = undefined;
 
-var fileSystems: std.StringArrayHashMapUnmanaged(FileSystemEntry) = .empty;
+var fileSystems: std.StringArrayHashMapUnmanaged(*FileSystemEntry) = .empty;
 
 pub fn init() void {
     log.debug(" ## Setting up file system service...", .{});
@@ -26,18 +28,15 @@ pub fn init() void {
     arena = .init(root.mem.heap.kernel_buddy_allocator);
     allocator = arena.allocator();
 
-    // Creating root node
-    fs_root = default_nodes.VirtualDirectory.init("root");
-
-    // Creating dev node
-    var fs_dev = default_nodes.VirtualDirectory.init("dev");
-    _ = fs_root.node.append(&fs_dev.node);
+    fsroot.init();
 
     // getting capability resource node
     fs_resource = root.capabilities.get_node_by_guid(root.utils.Guid.fromString("0d132c17-8f92-4861-a735-d78c753b73cf") catch unreachable).?;
 
     _ = root.capabilities.create_callable(fs_resource, "lsdir", @ptrCast(&lsdir)) catch unreachable;
     _ = root.capabilities.create_callable(fs_resource, "lsroot", @ptrCast(&lsroot)) catch unreachable;
+    
+    _ = root.capabilities.create_callable(fs_resource, "chroot", @ptrCast(&chroot)) catch unreachable;
 
     _ = root.capabilities.create_callable(fs_resource, "append_file_system", @ptrCast(&append_file_system)) catch unreachable;
     _ = root.capabilities.create_callable(fs_resource, "remove_file_system", @ptrCast(&remove_file_system)) catch unreachable;
@@ -52,52 +51,57 @@ pub inline fn get_fs_allocator() std.mem.Allocator {
     return allocator;
 }
 
+pub fn chroot(newroot: *FsNode) callconv(.c) void {
+    fsroot.chroot(newroot);
+}
 pub fn get_root() *FsNode {
-    return &fs_root.node;
+    return &fsroot.root_wrapper;
 }
 
 
 fn append_file_system(entry: FileSystemEntry) callconv(.c) Result(void) {
     if (entry.name == null) return .err(.nullArgument);
     const slice = std.mem.sliceTo(entry.name.?, 0);
-
-    log.debug("Appending {s} file system", .{slice});
-
     if (fileSystems.contains(slice)) return .err(.nameAlreadyUsed);
-    fileSystems.put(allocator, slice, entry) catch root.oom_panic();
+
+    const instance = allocator.create(FileSystemEntry) catch root.oom_panic();
+    instance.* = entry;
+
+    fileSystems.put(allocator, slice, instance) catch root.oom_panic();
     return .retvoid();
 }
 fn remove_file_system(name: ?[*:0]const u8) callconv(.c) void {
     if (name == null) return;
     const slice = std.mem.sliceTo(name.?, 0);
-    _ = fileSystems.swapRemove(slice);
+    const instance = (fileSystems.fetchSwapRemove(slice) orelse return).value;
+    allocator.destroy(instance);
 }
 
 
 pub fn mount_disk(disk: *anyopaque) void {
     _ = disk;
 }
-pub fn mount_part(part: *anyopaque) void {
+pub fn mount_part(part: *PartEntry) void {
     log.debug("Mounting partition...", .{});
 
     const fs = get_partition_fs(part) orelse @panic("No compatible file system found!");
     log.debug("Mounting with {s}...", .{fs.name orelse "-"});
+    part.file_system = fs;
     fs.vtable.mount(part);
 
 }
 pub fn mount_disk_by_identifier_part_by_identifier(disk: [*:0]const u8, part: [*:0]const u8) callconv(.c) void {
     log.debug("mount requested - {s} : {s}", .{ disk, part });
 
-    const getdbipbi: *const fn ([*:0]const u8, [*:0]const u8) callconv(.c) ?*anyopaque = 
+    const getdbipbi: *const fn ([*:0]const u8, [*:0]const u8) callconv(.c) ?*lib.common.PartEntry = 
         @ptrCast(@alignCast((root.capabilities.get_node("Devices.MassStorage.get_disk_by_identifier_part_by_identifier")
         orelse @panic("Callable not found!")).data.callable));
     
-    const partitionEntry = getdbipbi(disk, part);
-    if (partitionEntry == null) @panic("Trying to mount a null partition entry!");
-    mount_part(partitionEntry.?);
+    const entry = getdbipbi(disk, part) orelse @panic("Trying to mount a null partition entry!");
+    mount_part(entry);
 }
 
-fn get_partition_fs(part: *anyopaque) ?FileSystemEntry {
+fn get_partition_fs(part: *PartEntry) ?*FileSystemEntry {
 
     for (fileSystems.values()) |i| {
         log.debug("Testing {s}...", .{i.name.?});
@@ -112,7 +116,7 @@ fn get_partition_fs(part: *anyopaque) ?FileSystemEntry {
 
 
 /// Dumps the content of the `node` directory
-pub fn lsdir(node: *FsNode) void {
+pub fn lsdir(node: *FsNode) callconv(.c) void {
 
     var iterator = node.get_iterator().value;
     while (iterator.next()) |n| {
@@ -121,7 +125,7 @@ pub fn lsdir(node: *FsNode) void {
 
 }
 /// Dumps all the file system
-pub fn lsroot() void {
+pub fn lsroot() callconv(.c) void {
 
     var buffer: std.ArrayList(u8) = .init(allocator);
     defer buffer.deinit();
@@ -135,7 +139,7 @@ pub fn lsroot() void {
     var stack: std.ArrayListUnmanaged(Entry) = .empty;
     defer stack.deinit(allocator);
 
-    const iterator = fs_root.node.get_iterator();
+    const iterator = get_root().get_iterator();
     stack.append(allocator, .{
         .iter = iterator.value,
         .level = 0,

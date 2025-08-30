@@ -8,12 +8,11 @@ const Result = interop.Result;
 pub const FsNode = extern struct {
 
     pub const FsNodeVtable = extern struct {
-        append_node: *const fn (ctx: *anyopaque, node: *FsNode) callconv(.c) Result(void),
-        branch: ?*const fn (ctx: *anyopaque, path: [*:0]const u8) callconv(.c) Result(*FsNode) = null,
-        get_child: *const fn (ctx: *anyopaque, index: usize) callconv(.c) Result(*FsNode),
+        append_node: *const fn (self: *FsNode, node: *FsNode) callconv(.c) Result(void),
+        branch: ?*const fn (self: *FsNode, path: [*:0]const u8) callconv(.c) Result(*FsNode) = null,
+        get_child: *const fn (self: *FsNode, index: usize) callconv(.c) Result(*FsNode),
     };
     pub const FsNodeIterator = NodeIterator;
-
 
     /// The name of this node \
     /// It can be the file/directory name
@@ -32,18 +31,15 @@ pub const FsNode = extern struct {
     /// or not (e.g. Files)
     iterable: bool,
 
-    /// The custom context of the node
-    ctx: *anyopaque,
-
     /// Hook for the node's virtual functions
     vtable: *const FsNodeVtable,
 
     pub fn append(s: *@This(), node: *FsNode) callconv(.c) Result(void) {
-        return s.vtable.append_node(s.ctx, node);
+        return s.vtable.append_node(s, node);
     }
     pub fn branch(s: *@This(), path: [*:0]const u8) callconv(.c) Result(*FsNode) {
         if (!s.iterable) return .err(.notIterable);
-        if (s.vtable.branch) |b| return b(s.ctx, path); 
+        if (s.vtable.branch) |b| return b(s, path); 
 
         // Default branching
         // FIXME verify if this function is realy reliable
@@ -68,6 +64,9 @@ pub const FsNode = extern struct {
         // If not, delegate the rest of the job further
         return q.branch(path[j..]);
     }
+    pub fn get_child(s: *@This(), index: usize) Result(*FsNode) {
+        return s.vtable.get_child(s, index);
+    }
     pub fn get_iterator(s: *@This()) callconv(.c) Result(NodeIterator) {
         if (!s.iterable) return .err(.notIterable);
 
@@ -80,7 +79,7 @@ pub const NodeIterator = extern struct {
     index: usize = 0,
 
     pub fn next(s: *@This()) ?*FsNode {
-        var ret = s.node.vtable.get_child(s.node.ctx, s.index);
+        var ret = s.node.get_child(s.index);
         s.index += 1;
         return if (ret.unwrap()) |v| v else null;
     }

@@ -60,8 +60,6 @@ pub fn _start(args: ?*anyopaque) callconv(.c) noreturn {
         log.info("Initialization done; Module {s} status: {s}", .{module.name, @tagName(module.status)});
     }
 
-    _random_infodump();
-
     log.info("Mounting root file system:", .{});
     switch (boot_info.boot_device) {
         .mbr => |_| @panic("Not implemented!"),
@@ -81,6 +79,7 @@ pub fn _start(args: ?*anyopaque) callconv(.c) noreturn {
         //else => unreachable,
     }
 
+    _random_infodump();
     log.info("Entering in sleep mode... zzz\n", .{});
 
     // Adam should never return as it indicates
@@ -107,5 +106,7 @@ fn _random_infodump() void {
     lspci();
     log.info("", .{});
     root.capabilities.lscaps();
+    log.info("", .{});
+    root.fs.lsroot();
 
 }

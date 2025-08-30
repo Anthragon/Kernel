@@ -2,7 +2,10 @@ const root = @import("root.zig");
 const Result = root.interop.Result;
 
 pub const fs = .{
-    .append_file_system = *const fn(root.FileSystemEntry) callconv(.c) Result(void),
+    .lsdir = *const fn(*root.common.FsNode) callconv(.c) void,
+    .lsroot = *const fn() callconv(.c) void,
+    .chroot = *const fn(*root.common.FsNode) callconv(.c) void,
+    .append_file_system = *const fn(root.common.FileSystemEntry) callconv(.c) Result(void),
     .remove_file_system = *const fn(?[*:0]const u8) callconv(.c) void,
 };
 

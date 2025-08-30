@@ -1,7 +1,10 @@
 const std = @import("std");
 const root = @import("root");
+const lib = @import("lib");
 const interop = root.interop;
-const FsNode = root.fs.FsNode;
+
+const FsNode = lib.common.FsNode;
+const PartEntry = lib.common.PartEntry;
 const Result = interop.Result;
 
 const ChildrenList = std.ArrayListUnmanaged(*FsNode);
@@ -24,7 +27,6 @@ pub const VirtualDirectory = struct {
             .type_id = "virtual_directory",
             .iterable = true,
 
-            .ctx = this,
             .vtable = &vtable,
         };
 
@@ -40,17 +42,17 @@ pub const VirtualDirectory = struct {
 
     const vtable: FsNode.FsNodeVtable = .{
         .append_node = append,
-        .get_child = getchild
+        .get_child = get_child
     };
 
     // Vtable functions after here
 
-    fn append(ctx: *anyopaque, node: *FsNode) callconv(.c) Result(void) {
+    fn append(ctx: *FsNode, node: *FsNode) callconv(.c) Result(void) {
         const s: *VirtualDirectory = @ptrCast(@alignCast(ctx));
         s.children.append(root.fs.get_fs_allocator(), node) catch root.oom_panic();
         return .retvoid();
     }
-    fn getchild(ctx: *anyopaque, index: usize) callconv(.c) Result(*FsNode) {
+    fn get_child(ctx: *FsNode, index: usize) callconv(.c) Result(*FsNode) {
         const s: *VirtualDirectory = @ptrCast(@alignCast(ctx));
         if (index < 0 or index >= s.children.items.len) return .err(.outOfBounds);
         return .val(s.children.items[index]);

@@ -137,7 +137,7 @@ pub fn setup() void {
     const unit_float: f64 = @floatFromInt(units[i].size);
 
     log.info("Total memory available: {d:.2} {s} ({} pages)", .{size_float / unit_float, units[i].name, total_memory_bytes / page_size});
-    log.debug("HHDM offset: {X}", .{hhdm_offset});
+    log.debug("\nHHDM offset: {X}", .{hhdm_offset});
 
     paging.enumerate_paging_features();
 
@@ -153,10 +153,10 @@ pub fn setup() void {
     kernel_virt_start = std.mem.alignBackward(usize, boot_info.kernel_base_virtual, page_size);
     kernel_virt_end = std.mem.alignForward(usize, @intFromPtr(@extern(*u64, .{ .name = "__kernel_end__" })), page_size);
 
-    log.debug("\nphys base: {X: >16}", .{ kernel_phys });
-    log.debug("\nphys end:  {X: >16}", .{ kernel_phys + kernel_len });
-    log.debug("\nvirt base: {X: >16}", .{kernel_virt_start });
-    log.debug("\nvirt end:  {X: >16}", .{ kernel_virt_end });
+    log.debug("phys base: {X: >16}", .{ kernel_phys });
+    log.debug("phys end:  {X: >16}", .{ kernel_phys + kernel_len });
+    log.debug("virt base: {X: >16}", .{kernel_virt_start });
+    log.debug("virt end:  {X: >16}", .{ kernel_virt_end });
 
     // Creating identity map
     const idmap_len = std.math.shl(usize, 1, phys_mapping_range_bits);
