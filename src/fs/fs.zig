@@ -164,7 +164,6 @@ pub fn lsroot() callconv(.c) void {
 
                 const size = node.get_size();
                 if (size.isok()) {
-                    std.log.info("{}", .{size});
                     const unit = lib.utils.units.calc(
                         size.value,
                         &lib.utils.units.data,
