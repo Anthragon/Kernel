@@ -38,7 +38,8 @@ const PageAllocator = struct {
         _ = memory;
         _ = alignment;
 
-        @panic("PA resize");
+        return false;
+        //TODO @panic("PA resize");
     }
     fn page_allocator_remap(_: *anyopaque, memory: []u8, alignment: Alignment, new_len: usize, _: usize) ?[*]u8 {
         log.debug("Page Allocator: Allocation requested: {} bytes", .{ new_len });

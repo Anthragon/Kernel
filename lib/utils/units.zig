@@ -14,7 +14,7 @@ pub fn calc(bytes: usize, units: []const UnitItem) struct { f64, []const u8 } {
     while (true) : (i += 1) if (bytes >= units[i].limit) break;
 
     const size_float: f64 = @floatFromInt(bytes);
-    const unit_float: f64 = @floatFromInt(units[i].limit);
+    const unit_float: f64 = @floatFromInt(@max(1, units[i].limit));
 
     return .{ size_float / unit_float, units[i].name };
 }
