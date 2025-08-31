@@ -4,6 +4,7 @@ pub const Error = enum(usize) {
 
     // Misc
     unexpected,
+    notImplemented,
     nullContext,
     nullArgument,
 

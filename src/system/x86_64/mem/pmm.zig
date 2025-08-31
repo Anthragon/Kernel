@@ -130,13 +130,9 @@ pub fn setup() void {
 
     }
 
-    var i: usize = 0;
-    while (true) : (i += 1) if (total_memory_bytes >= units[i].size) break;
+    const size = root.lib.utils.units.calc(total_memory_bytes, &root.lib.utils.units.data);
 
-    const size_float: f64 = @floatFromInt(total_memory_bytes);
-    const unit_float: f64 = @floatFromInt(units[i].size);
-
-    log.info("Total memory available: {d:.2} {s} ({} pages)", .{size_float / unit_float, units[i].name, total_memory_bytes / page_size});
+    log.info("Total memory available: {d:.2} {s} ({} pages)", .{size.@"0", size.@"1", total_memory_bytes / page_size});
     log.debug("\nHHDM offset: {X}", .{hhdm_offset});
 
     paging.enumerate_paging_features();

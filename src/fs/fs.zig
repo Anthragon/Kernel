@@ -153,9 +153,24 @@ pub fn lsroot() callconv(.c) void {
             for (0..last.level) |_| writer.writeAll("  ") catch unreachable;
 
             if (node.iterable) {
-                writer.print("{s: <20} {s}", .{ node.name, node.type }) catch unreachable;
+
+                const name = std.mem.sliceTo(node.name, 0);
+                writer.print("{s}/", .{ name }) catch unreachable;
+                for (name.len..19) |_| writer.writeByte(' ') catch unreachable;
+                writer.print(" {s}", .{ node.type }) catch unreachable;
             } else {
-                writer.print("{s: <20} {s}", .{ node.name, node.type }) catch unreachable;
+                
+                writer.print("{s: <20} {s: <25}", .{ node.name, node.type}) catch unreachable;
+
+                const size = node.get_size();
+                if (size.isok()) {
+                    std.log.info("{}", .{size});
+                    const unit = lib.utils.units.calc(
+                        size.value,
+                        &lib.utils.units.data,
+                    );
+                    writer.print(" {d:.2} {s}", .{unit.@"0", unit.@"1"}) catch unreachable;
+                } else writer.print("Unk", .{}) catch unreachable;
             }
 
             if (node.iterable) {
@@ -170,6 +185,8 @@ pub fn lsroot() callconv(.c) void {
                     }) catch root.oom_panic();
                 }
             }
+
+            writer.writeByte('\n') catch unreachable;
 
         }
         else _ = stack.pop();

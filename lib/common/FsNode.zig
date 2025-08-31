@@ -8,9 +8,12 @@ const Result = interop.Result;
 pub const FsNode = extern struct {
 
     pub const FsNodeVtable = extern struct {
-        append_node: *const fn (self: *FsNode, node: *FsNode) callconv(.c) Result(void),
+        append_node: ?*const fn (self: *FsNode, node: *FsNode) callconv(.c) Result(void) = null,
         branch: ?*const fn (self: *FsNode, path: [*:0]const u8) callconv(.c) Result(*FsNode) = null,
-        get_child: *const fn (self: *FsNode, index: usize) callconv(.c) Result(*FsNode),
+        get_child: ?*const fn (self: *FsNode, index: usize) callconv(.c) Result(*FsNode) = null,
+
+        // metadata related
+        get_size: ?*const fn (self: *FsNode) callconv(.c) Result(usize) = null,
     };
     pub const FsNodeIterator = NodeIterator;
 
@@ -34,8 +37,10 @@ pub const FsNode = extern struct {
     /// Hook for the node's virtual functions
     vtable: *const FsNodeVtable,
 
+
     pub fn append(s: *@This(), node: *FsNode) callconv(.c) Result(void) {
-        return s.vtable.append_node(s, node);
+        if (s.vtable.append_node) |appn| return appn(s, node);
+        return .err(.notImplemented);
     }
     pub fn branch(s: *@This(), path: [*:0]const u8) callconv(.c) Result(*FsNode) {
         if (!s.iterable) return .err(.notIterable);
@@ -65,12 +70,18 @@ pub const FsNode = extern struct {
         return q.branch(path[j..]);
     }
     pub fn get_child(s: *@This(), index: usize) Result(*FsNode) {
-        return s.vtable.get_child(s, index);
+        if (s.vtable.get_child) |getc| return getc(s, index);
+        return .err(.notImplemented);
     }
     pub fn get_iterator(s: *@This()) callconv(.c) Result(NodeIterator) {
         if (!s.iterable) return .err(.notIterable);
 
         return .val(.{ .node = s });
+    }
+
+    pub fn get_size(s: *@This()) callconv(.c) Result(usize) {
+        if (s.vtable.get_size) |gs| return gs(s);
+        return .err(.notImplemented);
     }
 };
 

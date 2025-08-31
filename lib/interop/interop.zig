@@ -30,5 +30,8 @@ pub fn Result(T: type) type {
         pub fn unwrap(s: *const @This()) ?T {
             return if (s.@"error" == .noerror) s.value else null;
         }
+        pub fn isok(s: *const @This()) bool {
+            return s.@"error" == .noerror;
+        }
     };
 }
