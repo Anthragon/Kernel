@@ -50,7 +50,8 @@ fn initialize_virtual_root() void {
 
 const vtable: FsNode.FsNodeVtable = .{
     .append_node = append,
-    .get_child = getchild
+    .get_child = getchild,
+    .branch = branch,
 };
 
 // Vtable functions after here
@@ -61,10 +62,26 @@ fn append(_: *FsNode, node: *FsNode) callconv(.c) Result(void) {
     @panic("TODO see how to handle it somehow");
 }
 fn getchild(_: *FsNode, index: usize) callconv(.c) Result(*FsNode) {
-    const vfs_len = vfs_root.children.items.len;
+    const vfs_children = vfs_root.children.values();
 
-    if (index < vfs_len) return .val(vfs_root.children.items[index])
-    else if (pfs_root) |r| return r.get_child(index - vfs_len)
+    if (index < vfs_children.len) return .val(vfs_children[index])
+    else if (pfs_root) |r| return r.get_child(index - vfs_children.len)
 
     else return .err(.outOfBounds);
+}
+fn branch(_: *FsNode, path: [*:0]const u8) callconv(.c) Result(*FsNode) {
+
+    const pathslice = std.mem.sliceTo(path, 0);
+
+    const i: usize = std.mem.indexOf(u8, pathslice, "/") orelse pathslice.len;
+    const nodename = pathslice[0..i];
+
+    var vcdict = vfs_root.children;
+    if (vcdict.contains(nodename)) {
+        const node = vcdict.get(nodename).?;
+        if (i != pathslice.len) return node.branch(path[i+1..]);
+        return .val(node);
+    }
+
+    return if (pfs_root) |pfs| pfs.branch(path) else @panic("fuck");
 }

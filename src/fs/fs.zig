@@ -54,10 +54,12 @@ pub inline fn get_fs_allocator() std.mem.Allocator {
 pub fn chroot(newroot: *FsNode) callconv(.c) void {
     fsroot.chroot(newroot);
 }
-pub fn get_root() *FsNode {
+pub fn get_root() callconv(.c) *FsNode {
     return &fsroot.root_wrapper;
 }
-
+pub fn get_node(path: [*:0]const u8) callconv(.c) Result(*FsNode) {
+    return get_root().branch(path);
+}
 
 fn append_file_system(entry: FileSystemEntry) callconv(.c) Result(void) {
     if (entry.name == null) return .err(.nullArgument);

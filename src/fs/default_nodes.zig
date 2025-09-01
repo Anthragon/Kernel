@@ -7,7 +7,7 @@ const FsNode = lib.common.FsNode;
 const PartEntry = lib.common.PartEntry;
 const Result = interop.Result;
 
-const ChildrenList = std.ArrayListUnmanaged(*FsNode);
+const ChildrenList = std.StringArrayHashMapUnmanaged(*FsNode);
 
 pub const VirtualDirectory = struct {
 
@@ -49,13 +49,16 @@ pub const VirtualDirectory = struct {
 
     fn append(ctx: *FsNode, node: *FsNode) callconv(.c) Result(void) {
         const s: *VirtualDirectory = @ptrCast(@alignCast(ctx));
-        s.children.append(root.fs.get_fs_allocator(), node) catch root.oom_panic();
+        const slice = std.mem.sliceTo(node.name, 0);
+        s.children.put(root.fs.get_fs_allocator(), slice, node) catch root.oom_panic();
         return .retvoid();
     }
     fn get_child(ctx: *FsNode, index: usize) callconv(.c) Result(*FsNode) {
         const s: *VirtualDirectory = @ptrCast(@alignCast(ctx));
-        if (index < 0 or index >= s.children.items.len) return .err(.outOfBounds);
-        return .val(s.children.items[index]);
+        const children = s.children.values();
+
+        if (index >= children.len) return .err(.outOfBounds);
+        return .val(children[index]);
     }
 
 };

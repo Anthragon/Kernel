@@ -2,6 +2,7 @@ const std = @import("std");
 const root = @import("root");
 
 pub const Error = @import("errors.zig").Error;
+pub const errorToZigError = @import("errors.zig").errorToZigError;
 
 pub fn Result(T: type) type {
     return extern struct {
@@ -32,6 +33,9 @@ pub fn Result(T: type) type {
         }
         pub fn isok(s: *const @This()) bool {
             return s.@"error" == .noerror;
+        }
+        pub fn getZigErr(s: *const @This()) anyerror {
+            return errorToZigError(s.@"error");
         }
     };
 }

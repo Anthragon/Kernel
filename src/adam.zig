@@ -1,5 +1,6 @@
 const std = @import("std");
 const root = @import("root");
+const lib = @import("lib");
 const threading = root.threading;
 const modules = root.modules;
 
@@ -60,7 +61,7 @@ pub fn _start(args: ?*anyopaque) callconv(.c) noreturn {
         log.info("Initialization done; Module {s} status: {s}", .{module.name, @tagName(module.status)});
     }
 
-    log.info("Mounting root file system:", .{});
+    log.info("Mounting boot partition as root file system:", .{});
     switch (boot_info.boot_device) {
         .mbr => |_| @panic("Not implemented!"),
         .gpt => |gpt| {
@@ -79,6 +80,16 @@ pub fn _start(args: ?*anyopaque) callconv(.c) noreturn {
         },
         //else => unreachable,
     }
+
+    const setup_query = root.fs.get_node("setup.toml");
+    if (!setup_query.isok()) std.debug.panic("bruh {s}", .{ @tagName(setup_query.@"error") });
+    const setup_file: *lib.common.FsNode = setup_query.unwrap().?;
+
+    const file_content = setup_file.readAll(allocator) catch unreachable;
+    root.debug.dumpHexErr(file_content);
+    log.info("#{s:-<42}#", .{setup_file.name});
+    log.info("{s}", .{ file_content });
+    log.info("#------------------------------------------#", .{});
 
     _random_infodump();
     log.info("Entering in sleep mode... zzz\n", .{});
