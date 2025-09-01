@@ -1,6 +1,8 @@
 pub const interop = @import("interop/interop.zig");
 pub const utils = @import("utils/utils.zig");
 
+pub const Toml = @import("toml/Toml.zig");
+
 pub const common = .{
     .FileSystemEntry = @import("common/FileSystemEntry.zig").FileSystemEntry,
     .DiskEntry = @import("common/DiskEntry.zig").DiskEntry,

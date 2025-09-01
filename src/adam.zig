@@ -75,21 +75,35 @@ pub fn _start(args: ?*anyopaque) callconv(.c) noreturn {
                 allocator.free(part_buf);
             }
 
-            const root_node = root.fs.mount_disk_by_identifier_part_by_identifier(disk_buf.ptr, part_buf.ptr);
+            const boot_node = root.fs.mount_disk_by_identifier_part_by_identifier(disk_buf.ptr, part_buf.ptr);
+            root.fs.chroot(boot_node);
+
+            const setup_query = root.fs.get_node("setup.toml");
+            if (!setup_query.isok()) std.debug.panic("bruh {s}", .{ @tagName(setup_query.@"error") });
+            const setup_file: *lib.common.FsNode = setup_query.unwrap().?;
+
+            const file_content = setup_file.readAll(allocator) catch unreachable;
+            defer allocator.free(file_content);
+            var toml = lib.Toml.parseToml(allocator, file_content) catch unreachable;
+            defer toml.deinit();
+
+            const rootfs_disk_value= (toml.content.get("rootfs_disk") orelse @panic("Expected 'rootfs_disk' field in setup.toml"));
+            const rootfs_part_value= (toml.content.get("rootfs_part") orelse @panic("Expected 'rootfs_part' field in setup.toml"));
+            
+            if (rootfs_disk_value != .String) std.debug.panic("'rootfs_disk' is {s}", .{@tagName(rootfs_disk_value)});
+            if (rootfs_part_value != .String) std.debug.panic("'rootfs_part' is {s}", .{@tagName(rootfs_disk_value)});
+            
+            const rootfs_disk = rootfs_disk_value.String;
+            const rootfs_part = rootfs_part_value.String;
+
+            //_ = rootfs_disk;
+            //_ = rootfs_part;
+
+            const root_node = root.fs.mount_disk_by_identifier_part_by_identifier(rootfs_disk, rootfs_part);
             root.fs.chroot(root_node);
         },
         //else => unreachable,
     }
-
-    const setup_query = root.fs.get_node("setup.toml");
-    if (!setup_query.isok()) std.debug.panic("bruh {s}", .{ @tagName(setup_query.@"error") });
-    const setup_file: *lib.common.FsNode = setup_query.unwrap().?;
-
-    const file_content = setup_file.readAll(allocator) catch unreachable;
-    root.debug.dumpHexErr(file_content);
-    log.info("#{s:-<42}#", .{setup_file.name});
-    log.info("{s}", .{ file_content });
-    log.info("#------------------------------------------#", .{});
 
     _random_infodump();
     log.info("Entering in sleep mode... zzz\n", .{});
@@ -116,8 +130,8 @@ fn _random_infodump() void {
     lsblk();
     log.info("", .{});
     lspci();
-    log.info("", .{});
-    root.capabilities.lscaps();
+    //log.info("", .{});
+    //root.capabilities.lscaps();
     log.info("", .{});
     root.fs.lsroot();
 
