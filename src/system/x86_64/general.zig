@@ -98,4 +98,6 @@ fn setup_timer_interval()  void {
     ports.outb(0x43, 0x36);
     ports.outb(0x40, @intCast(divisor & 0xFF));
     ports.outb(0x40, @intCast((divisor >> 8) & 0xFF));
+
+    pic.pic_enable(0);
 }

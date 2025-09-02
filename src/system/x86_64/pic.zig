@@ -1,3 +1,4 @@
+const std = @import("std");
 const root = @import("root");
 const io = @import("ports.zig");
 
@@ -14,6 +15,39 @@ pub fn setup() void {
     io.outb(0x21, 0x01); // Enables 8086/88 (ICW4) in master PIC
     io.outb(0xA1, 0x01); // Enables 8086/88 (ICW4) in slave  PIC
 
-    io.outb(0x21, 0x00); // Enables all interrupts from master PIC
-    io.outb(0xA1, 0x00); // Enables all interrupts from slave  PIC
+    io.outb(0x21, 0xff); // Disables all interrupts from master PIC
+    io.outb(0xA1, 0xff); // Disables all interrupts from slave  PIC
+}
+
+pub fn pic_disable(irq: u8) void {
+    var port: u16 = undefined;
+    var irq_bit: u8 = undefined;
+
+    if (irq < 8) {
+        port = 0x21;
+        irq_bit = irq;
+    } else {
+        port = 0xA1;
+        irq_bit = irq - 8;
+    }
+
+    var mask: u8 = io.inb(port);
+    mask |= std.math.shl(u8, 1, irq_bit);
+    io.outb(port, mask);
+}
+pub fn pic_enable(irq: u8) void {
+    var port: u16 = undefined;
+    var irq_bit: u8 = undefined;
+
+    if (irq < 8) {
+        port = 0x21;
+        irq_bit = irq;
+    } else {
+        port = 0xA1;
+        irq_bit = irq - 8;
+    }
+
+    var mask: u8 = io.inb(port);
+    mask &= ~std.math.shl(u8, 1, irq_bit);
+    io.outb(port, mask);
 }

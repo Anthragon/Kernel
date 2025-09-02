@@ -82,6 +82,7 @@ pub fn build(b: *std.Build) void {
     const kernel_exe = b.addExecutable(.{
         .name = "kernel",
         .root_module = kernel_mod,
+        .zig_lib_dir = undefined,
     });
     kernel_exe.entry = .{ .symbol_name = "__boot_entry__" };
     switch (target_arch) {

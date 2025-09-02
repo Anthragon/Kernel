@@ -7,9 +7,6 @@ var height: usize = 0;
 var width: usize = 0;
 var pps: usize = 0;
 
-var font_width: usize = 0;
-var font_height: usize = 0;
-
 pub var char_height: usize = 0;
 pub var char_width: usize = 0;
 
@@ -17,10 +14,6 @@ const clear_color = Pixel.rgb(0, 0, 0);
 const fg_color = Pixel.rgb(200, 200, 200);
 const bg_color = Pixel.rgb(0, 0, 0);
 
-const font: [2][]const u8 = .{
-    @embedFile("assets/bitfont.bf"),
-    @embedFile("assets/monofont.bf"),
-};
 const Pixel = packed struct(u32) {
     blue: u8,
     green: u8,
@@ -31,6 +24,9 @@ const Pixel = packed struct(u32) {
         return .{ .red = r, .green = g, .blue = b };
     }
 };
+const font: []const u8 = @embedFile("assets/FATSCII.F16");
+const font_width: usize = 8;
+const font_height: usize = 16;
 
 const log = std.log.scoped(.gl);
 
@@ -43,9 +39,6 @@ pub fn init(fb: []u8, w: usize, h: usize, p: usize) void {
     height = h;
     width = w;
     pps = framebuffer.len / height;
-
-    font_width = std.mem.readInt(u32, font[0][0..4], .big);
-    font_height = std.mem.readInt(u32, font[0][4..8], .big);
 
     char_width = @min(200, @divFloor(width - font_width*2, font_width));
     char_height = @min(50, @divFloor(height - font_height*2, font_height));
@@ -99,48 +92,72 @@ pub fn clear() void {
 pub fn draw_char(c: u8) void {
     if (char_x > char_width or char_y > char_height) return;
 
-    const char_base = font[1][0x10 + (c * 2 * font_height) ..];
+    const char_base = font[c  * font_height ..];
 
     const gx = char_x * font_width + font_width;
     const gy = char_y * font_height + font_height;
 
     for (0..font_height) |y| {
-        const hi = @as(u16, char_base[y * 2 + 0]);
-        const lo = @as(u16, char_base[y * 2 + 1]);
-        var c_line: u16 = (hi << 8) | lo;
+        const c_line: u8 = char_base[y];
 
         const dst_index = gx + (gy + y) * pps;
         const dst_ptr: [*]Pixel = framebuffer[dst_index..].ptr;
 
-        if (font_width < 16) {
-            const shift: u5 = @intCast(16 - font_width);
-            c_line = @intCast((@as(u32, c_line) >> shift) << shift);
-        }
-
-        @memset(dst_ptr[0..font_width], bg_color);
-
         asm volatile (
-            \\ movl    %[mask], %eax
-            \\ movl    %[fg], %edx
-            \\ movq    %[dst], %rbx
-            \\ testl   %eax, %eax
-            \\ jz      2f
+            \\ testb   $0x80,   %[msk]
+            \\ cmovnz  %[cfg],  %edi        # if bit=1: [dst] = cfg
+            \\ cmovz   %[cbg],  %edi        # else:     [dst] = cbg
+            \\ movl    %edi,   (%[dst])
+            \\ addq    $4,     %[dst]
             \\
-            \\ 1:
-            \\   bsfl   %eax, %ecx
-            \\   btrl   %ecx, %eax
-            \\   movl   $15, %esi
-            \\   subl   %ecx, %esi
-            \\   leaq   (%rbx,%rsi,4), %rdi
-            \\   movl   %edx, (%rdi)
-            \\   testl  %eax, %eax
-            \\   jnz    1b
-            \\ 2:
+            \\ testb   $0x40,   %[msk]
+            \\ cmovnz  %[cfg],  %edi
+            \\ cmovz   %[cbg],  %edi
+            \\ movl    %edi,   (%[dst])
+            \\ addq    $4,     %[dst]
+            \\
+            \\ testb   $0x20,   %[msk]
+            \\ cmovnz  %[cfg],  %edi
+            \\ cmovz   %[cbg],  %edi
+            \\ movl    %edi,   (%[dst])
+            \\ addq    $4,     %[dst]
+            \\
+            \\ testb   $0x10,   %[msk]
+            \\ cmovnz  %[cfg],  %edi
+            \\ cmovz   %[cbg],  %edi
+            \\ movl    %edi,   (%[dst])
+            \\ addq    $4,     %[dst]
+            \\
+            \\ testb   $0x08,   %[msk]
+            \\ cmovnz  %[cfg],  %edi
+            \\ cmovz   %[cbg],  %edi
+            \\ movl    %edi,   (%[dst])
+            \\ addq    $4,     %[dst]
+            \\
+            \\ testb   $0x04,   %[msk]
+            \\ cmovnz  %[cfg],  %edi
+            \\ cmovz   %[cbg],  %edi
+            \\ movl    %edi,   (%[dst])
+            \\ addq    $4,     %[dst]
+            \\
+            \\ testb   $0x02,   %[msk]
+            \\ cmovnz  %[cfg],  %edi
+            \\ cmovz   %[cbg],  %edi
+            \\ movl    %edi,   (%[dst])
+            \\ addq    $4,     %[dst]
+            \\
+            \\ testb   $0x01,   %[msk]
+            \\ cmovnz  %[cfg],  %edi
+            \\ cmovz   %[cbg],  %edi
+            \\ movl    %edi,   (%[dst])
+            \\ addq    $4,     %[dst]
             :
-            : [dst]  "r" (dst_ptr),
-              [fg]   "r" (fg_color),
-              [mask] "r" (@as(u32, c_line))
-            : "rax","rbx","rcx","rdx","rdi","rsi","memory","cc"
+            :
+                [msk] "r" (c_line),
+                [dst] "r" (dst_ptr),
+                [cfg] "r" (fg_color),
+                [cbg] "r" (bg_color),
+            : "rdi","rsi","memory","cc"
         );
     }
 
