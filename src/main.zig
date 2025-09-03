@@ -48,7 +48,7 @@ pub fn main(_boot_info: BootInfo) noreturn {
     boot_info = _boot_info;
     system.assembly.flags.clear_interrupt();
 
-    // Setting up graphics
+    // Setting up basic text graphics mode
     basicgl.init(
         boot_info.framebuffer.framebuffer,
         boot_info.framebuffer.width,
@@ -57,12 +57,10 @@ pub fn main(_boot_info: BootInfo) noreturn {
     );
     basicgl.clear();
 
-
     // Setupping system-dependant resources
     system.init() catch { @panic("System could not be initialized!"); };
     // Setting up Virtual memory manager
     system.vmm.init();
-
     // Setting up interrupts
     @import("interrupts.zig").install_interrupts();
 

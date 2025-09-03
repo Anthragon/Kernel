@@ -10,13 +10,9 @@ const tty_config: std.io.tty.Config = .no_color;
 const stdout = 1;
 const stderr = 2;
 
-const screen_width = 200;
-const screen_height = 50;
-var screen_buffer: [screen_width * screen_height]u8 = undefined;
-var screenx: usize = 0;
-var screeny: usize = 0;
-
 var locked_frame: usize = 0;
+
+pub const gout = @import("gout.zig");
 
 pub fn dumpStackTrace(ret_address: usize) void {
     const writer = serial.chardev(stderr);
@@ -38,8 +34,6 @@ pub fn dumpStackTrace(ret_address: usize) void {
 
 pub fn dumpHex(bytes: []const u8) void {
     dumpHexInternal(bytes, tty_config, serial.chardev(stdout)) catch {};
-    dumpHexInternal(bytes, tty_config, swriter()) catch {};
-    redraw_screen();
 }
 pub fn dumpHexErr(bytes: []const u8) void {
     dumpHexInternal(bytes, tty_config, serial.chardev(stderr)) catch {};
@@ -95,59 +89,4 @@ pub inline fn lock_frame(frame: usize) void {
 }
 pub inline fn unlock_frame() void {
     locked_frame = 0;
-}
-
-// Screen things
-pub const ScreenWriter = std.io.Writer(*anyopaque, error{}, screen_out);
-
-pub inline fn swriter() ScreenWriter {
-    return .{ .context = undefined };
-}
-fn screen_out(_: *anyopaque, bytes: []const u8) !usize {
-    const gl = root.basicgl;
-    if (!gl.active) return 0;
-
-    for (bytes) |e| {
-        if (e == '\n') {
-            screenx = 0;
-            screeny += 1;
-            if (screeny >= gl.char_height) push_lines_up();
-        } else if (e == '\r') {
-            screenx = 0;
-        } else if (e == '\t') {
-            screenx = std.mem.alignForward(usize, screenx, 4);
-        } else {
-            screen_buffer[screenx + screeny * screen_width] = e;
-            screenx += 1;
-            if (screenx >= gl.char_width) {
-                screenx = 0;
-                screeny += 1;
-                if (screeny >= gl.char_height) push_lines_up();
-            }
-        }
-    }
-
-    return bytes.len;
-}
-pub fn redraw_screen() void {
-    const gl = root.basicgl;
-    if (!gl.active) return;
-
-    for (0..gl.char_height) |y| {
-        gl.set_cursor_pos(0, y);
-
-        var x: usize = 0;
-        while (x < gl.char_width) : (x += 1) {
-            const c = screen_buffer[x + y * screen_width];
-            if (c == 0) break;
-            gl.draw_char(c);
-        }
-        while (x < gl.char_width) : (x += 1) gl.draw_char(' ');
-    }
-}
-fn push_lines_up() void {
-    for (0..screen_height - 1) |i|
-        @memcpy(screen_buffer[i * screen_width .. i * screen_width + screen_width], screen_buffer[i * screen_width + screen_width .. i * screen_width + screen_width * 2]);
-    @memset(screen_buffer[(screen_height - 1) * screen_width .. screen_height * screen_width], 0);
-    screeny -= 1;
 }

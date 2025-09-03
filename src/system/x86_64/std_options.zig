@@ -60,7 +60,7 @@ fn logFn(
         write_log_message(output1, output2, output3, "\n");
     }
     
-    debug.redraw_screen();
+    debug.gout.redraw_screen();
 
 }
 
@@ -68,7 +68,7 @@ fn logFn(
 fn write_log_message(out: bool, err: bool, scr: bool, content: []const u8) void {
     if (out) serial.chardev(1).writeAll(content) catch unreachable;
     if (err) serial.chardev(2).writeAll(content) catch unreachable;
-    if (scr) debug.swriter().writeAll(content) catch unreachable;
+    if (scr) debug.gout.swriter().writeAll(content) catch unreachable;
 }
 
 // TODO use system sensors for generating entropy
