@@ -9,7 +9,7 @@ pub const system = @import("system/system.zig");
 /// Memory and Memory-management related
 pub const mem = @import("mem/mem.zig");
 /// Simple CPU-based graphics library
-pub const gl = @import("gl/gl.zig");
+pub const basicgl = @import("basicgl/basicgl.zig");
 /// Galvan File System interface
 pub const fs = @import("fs/fs.zig");
 /// Devices management
@@ -49,13 +49,13 @@ pub fn main(_boot_info: BootInfo) noreturn {
     system.assembly.flags.clear_interrupt();
 
     // Setting up graphics
-    gl.init(
+    basicgl.init(
         boot_info.framebuffer.framebuffer,
         boot_info.framebuffer.width,
         boot_info.framebuffer.height,
         boot_info.framebuffer.pps
     );
-    gl.clear();
+    basicgl.clear();
 
 
     // Setupping system-dependant resources

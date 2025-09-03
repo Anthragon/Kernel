@@ -7,6 +7,8 @@ var height: usize = 0;
 var width: usize = 0;
 var pps: usize = 0;
 
+pub var active: bool = false;
+
 pub var char_height: usize = 0;
 pub var char_width: usize = 0;
 

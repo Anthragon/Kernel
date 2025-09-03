@@ -104,7 +104,8 @@ pub inline fn swriter() ScreenWriter {
     return .{ .context = undefined };
 }
 fn screen_out(_: *anyopaque, bytes: []const u8) !usize {
-    const gl = root.gl;
+    const gl = root.basicgl;
+    if (!gl.active) return 0;
 
     for (bytes) |e| {
         if (e == '\n') {
@@ -128,14 +129,9 @@ fn screen_out(_: *anyopaque, bytes: []const u8) !usize {
 
     return bytes.len;
 }
-fn push_lines_up() void {
-    for (0..screen_height - 1) |i|
-        @memcpy(screen_buffer[i * screen_width .. i * screen_width + screen_width], screen_buffer[i * screen_width + screen_width .. i * screen_width + screen_width * 2]);
-    @memset(screen_buffer[(screen_height - 1) * screen_width .. screen_height * screen_width], 0);
-    screeny -= 1;
-}
 pub fn redraw_screen() void {
-    const gl = root.gl;
+    const gl = root.basicgl;
+    if (!gl.active) return;
 
     for (0..gl.char_height) |y| {
         gl.set_cursor_pos(0, y);
@@ -148,4 +144,10 @@ pub fn redraw_screen() void {
         }
         while (x < gl.char_width) : (x += 1) gl.draw_char(' ');
     }
+}
+fn push_lines_up() void {
+    for (0..screen_height - 1) |i|
+        @memcpy(screen_buffer[i * screen_width .. i * screen_width + screen_width], screen_buffer[i * screen_width + screen_width .. i * screen_width + screen_width * 2]);
+    @memset(screen_buffer[(screen_height - 1) * screen_width .. screen_height * screen_width], 0);
+    screeny -= 1;
 }
