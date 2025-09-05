@@ -43,7 +43,7 @@ fn screen_buffer_drain(_: *std.io.Writer, data: []const []const u8, splen: usize
     return count;
 }
 fn screen_buffer_write(bytes: []const u8) void {
-    var lines: isize = 0;
+    var lines: isize = 1;
     for (bytes) |c| {
         if (c == '\n') lines += 1;
     }
@@ -80,18 +80,18 @@ fn push_lines_up(offset: usize) void {
 
     //const sw: usize = @min(max_screen_width, gl.grid_width);
     const sh: usize = @min(max_screen_height, gl.grid_height);
+    const sw: usize = @min(max_screen_width, std.mem.alignForward(usize, gl.grid_width, 16));
     const mw = max_screen_width;
 
-    const lines_to_copy = sh - offset;
+    const lines_to_copy = sh - offset + 1;
     const dst = &screen_buffer;
 
     for (0..lines_to_copy) |i| {
         const src_off = (i + offset) * mw;
         const dst_off = i * mw;
 
-        const blocks = mw / 16;
+        const blocks = sw / 16;
         asm volatile (
-            \\ movq   %[blocks], %%rcx
             \\ movq   %[src], %%rsi
             \\ movq   %[dst], %%rdi
             \\ 1:
@@ -99,16 +99,16 @@ fn push_lines_up(offset: usize) void {
             \\   movdqu %%xmm0, (%%rdi)
             \\   addq   $16, %%rsi
             \\   addq   $16, %%rdi
-            \\   decq   %%rcx
+            \\   decq   %[i]
             \\   jne    1b
             :
             : [src] "r" (&dst[src_off]),
               [dst] "r" (&dst[dst_off]),
-              [blocks] "r" (blocks),
-            : .{ .rcx = true, .rsi = true, .rdi = true, .xmm0 = true, .memory = true, .cc = true });
+              [i] "r" (blocks),
+            : .{ .rsi = true, .rdi = true, .xmm0 = true, .memory = true, .cc = true });
     }
 
-    for (0..offset) |j| {
+    for (0..offset + 1) |j| {
         const off = (sh - offset + j) * mw;
         const blocks = mw / 16;
 
@@ -127,5 +127,5 @@ fn push_lines_up(offset: usize) void {
             : .{ .rcx = true, .rdi = true, .xmm0 = true, .memory = true, .cc = true });
     }
 
-    screeny -= offset + 1;
+    screeny -= offset;
 }

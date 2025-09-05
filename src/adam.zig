@@ -77,32 +77,44 @@ pub fn _start(args: ?*anyopaque) callconv(.c) noreturn {
 
             const boot_node = root.fs.mount_disk_by_identifier_part_by_identifier(disk_buf.ptr, part_buf.ptr);
             root.fs.chroot(boot_node);
-
-            const setup_query = root.fs.get_node("setup.toml");
-            if (!setup_query.isok()) std.debug.panic("bruh {s}", .{@tagName(setup_query.@"error")});
-            const setup_file: *lib.common.FsNode = setup_query.unwrap().?;
-
-            const file_content = setup_file.readAll(allocator) catch unreachable;
-            defer allocator.free(file_content);
-            var toml = lib.Toml.parseToml(allocator, file_content) catch unreachable;
-            defer toml.deinit();
-
-            const rootfs_disk_value = (toml.content.get("rootfs_disk") orelse @panic("Expected 'rootfs_disk' field in setup.toml"));
-            const rootfs_part_value = (toml.content.get("rootfs_part") orelse @panic("Expected 'rootfs_part' field in setup.toml"));
-
-            if (rootfs_disk_value != .String) std.debug.panic("'rootfs_disk' is {s}", .{@tagName(rootfs_disk_value)});
-            if (rootfs_part_value != .String) std.debug.panic("'rootfs_part' is {s}", .{@tagName(rootfs_disk_value)});
-
-            const rootfs_disk = rootfs_disk_value.String;
-            const rootfs_part = rootfs_part_value.String;
-
-            //_ = rootfs_disk;
-            //_ = rootfs_part;
-
-            const root_node = root.fs.mount_disk_by_identifier_part_by_identifier(rootfs_disk, rootfs_part);
-            root.fs.chroot(root_node);
         },
         //else => unreachable,
+    }
+
+    const setup_query = root.fs.get_node("setup.toml");
+    if (!setup_query.isok()) std.debug.panic("bruh {s}", .{@tagName(setup_query.@"error")});
+    const setup_file: *lib.common.FsNode = setup_query.unwrap().?;
+
+    const file_content = setup_file.readAll(allocator) catch unreachable;
+    defer allocator.free(file_content);
+    var toml = lib.Toml.parseToml(allocator, file_content) catch unreachable;
+    defer toml.deinit();
+
+    const fstab_nullable = toml.content.get("mount");
+    if (fstab_nullable) |fstab| {
+        if (fstab != .Array) std.debug.panic("{s}: Expected `mount` to be Array, found {s}", .{
+            setup_file.name,
+            @tagName(fstab),
+        });
+
+        for (fstab.Array) |i| {
+            if (i != .Table) std.debug.panic("{s}: Expected table contents to be '{{ disk: String, part: String, path: String }}', found {s}", .{ setup_file.name, @tagName(i) });
+            if (!i.Table.contains("disk") or i.Table.get("disk").? != .String or !i.Table.contains("part") or i.Table.get("part").? != .String or !i.Table.contains("path") or i.Table.get("path").? != .String)
+                std.debug.panic("{s}: Expected table contents to be '{{ disk: String, part: String, path: String }}', found Invalid Table", .{setup_file.name});
+
+            const entry_disk: [:0]const u8 = std.mem.sliceTo(i.Table.get("disk").?.String, 0);
+            const entry_part: [:0]const u8 = std.mem.sliceTo(i.Table.get("part").?.String, 0);
+            const entry_path: [:0]const u8 = std.mem.sliceTo(i.Table.get("path").?.String, 0);
+
+            const entry_node = root.fs.mount_disk_by_identifier_part_by_identifier(
+                entry_disk,
+                entry_part,
+            );
+
+            if (std.mem.eql(u8, entry_path, "/")) {
+                root.fs.chroot(entry_node);
+            } else _ = root.fs.set_mount_point(entry_node, entry_path.ptr);
+        }
     }
 
     _random_infodump();

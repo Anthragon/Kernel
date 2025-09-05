@@ -17,7 +17,7 @@ pub fn deinit(s: *@This()) void {
 
 pub fn parseToml(allocator: std.mem.Allocator, toml: []const u8) !@This() {
     var arena: std.heap.ArenaAllocator = .init(allocator);
-    const aloc = arena.allocator();
+    const alloc = arena.allocator();
     errdefer arena.deinit();
 
     var root = std.StringHashMapUnmanaged(Value).empty;
@@ -26,7 +26,6 @@ pub fn parseToml(allocator: std.mem.Allocator, toml: []const u8) !@This() {
 
     while (lines.next()) |line| {
         const trimmed = std.mem.trim(u8, line, " \t");
-
         if (trimmed.len == 0 or trimmed[0] == '#') continue;
 
         // Table header: [table]
@@ -41,9 +40,22 @@ pub fn parseToml(allocator: std.mem.Allocator, toml: []const u8) !@This() {
         // Key = value
         if (std.mem.indexOf(u8, trimmed, "=")) |eq_pos| {
             const key = std.mem.trim(u8, trimmed[0..eq_pos], " \t");
-            const value_str = std.mem.trim(u8, trimmed[eq_pos + 1 ..], " \t");
+            var value_str = std.mem.trimLeft(u8, trimmed[eq_pos + 1 ..], " \t");
 
-            const parsed = try parseTomlValue(aloc, value_str);
+            if (value_str.len > 0 and value_str[0] == '[' and value_str[value_str.len - 1] != ']') {
+                var end_line: []const u8 = value_str;
+
+                while (lines.next()) |next_line| {
+                    if (std.mem.indexOfScalar(u8, next_line, ']') != null) {
+                        end_line = next_line;
+                        break;
+                    }
+                }
+
+                value_str = toml[value_str.ptr - toml.ptr .. end_line.ptr - toml.ptr + end_line.len];
+            }
+
+            const parsed = try parseTomlValue(alloc, value_str);
             _ = try current_table.put(allocator, key, parsed);
         }
     }
@@ -54,22 +66,27 @@ pub fn parseToml(allocator: std.mem.Allocator, toml: []const u8) !@This() {
     };
 }
 fn parseTomlValue(allocator: std.mem.Allocator, value: []const u8) !Value {
+    const trimmed = std.mem.trim(u8, value, " \t");
 
     // Parse String
-    if (value.len >= 2 and ((value[0] == '"' and value[value.len - 1] == '"') or (value[0] == '\'' and value[value.len - 1] == '\''))) {
-        return Value{ .String = try allocator.dupeZ(u8, value[1 .. value.len - 1]) };
+    if (trimmed.len >= 2 and ((trimmed[0] == '"' and trimmed[trimmed.len - 1] == '"') or (trimmed[0] == '\'' and trimmed[trimmed.len - 1] == '\''))) {
+        return Value{ .String = try allocator.dupeZ(u8, trimmed[1 .. trimmed.len - 1]) };
     }
 
     // Parse Array
-    if (value.len >= 2 and value[0] == '[' and value[value.len - 1] == ']') {
+    if (trimmed.len >= 2 and trimmed[0] == '[' and trimmed[trimmed.len - 1] == ']') {
         var items = std.ArrayList(Value).empty;
-        const inner = std.mem.trim(u8, value[1 .. value.len - 1], " \t");
-        var it = std.mem.tokenizeScalar(u8, inner, ',');
+        const inner = std.mem.trim(u8, value[1 .. value.len - 1], " \t\n\r");
 
-        while (it.next()) |item| {
-            const val = try parseTomlValue(allocator, std.mem.trim(u8, item, " \t"));
+        const parts = try splitTopLevelComma(allocator, inner);
+        defer allocator.free(parts);
+
+        for (parts) |item| {
+            if (item.len == 0) continue;
+            const val = try parseTomlValue(allocator, item);
             try items.append(allocator, val);
         }
+
         return Value{ .Array = try items.toOwnedSlice(allocator) };
     }
 
@@ -99,4 +116,36 @@ fn parseTomlValue(allocator: std.mem.Allocator, value: []const u8) !Value {
     return Value{ .Integer = (std.fmt.parseInt(i64, value, 10) catch return error.ParseIntError) };
 
     //return error.UnsupportedTomlValue;
+}
+
+fn splitTopLevelComma(gpa: std.mem.Allocator, s: []const u8) ![][]const u8 {
+    var result = std.ArrayList([]const u8).empty;
+    var start: usize = 0;
+    var depth: usize = 0;
+    var i: usize = 0;
+
+    while (i < s.len) : (i += 1) {
+        const c = s[i];
+        switch (c) {
+            '{', '[' => depth += 1,
+            '}', ']' => {
+                if (depth > 0) depth -= 1;
+            },
+            ',' => if (depth == 0) {
+                const part = std.mem.trim(u8, s[start..i], " \t\n\r");
+                if (part.len > 0)
+                    try result.append(gpa, part);
+                start = i + 1;
+            },
+            else => {},
+        }
+    }
+
+    if (start < s.len) {
+        const part = std.mem.trim(u8, s[start..], " \t\n\r");
+        if (part.len > 0)
+            try result.append(gpa, part);
+    }
+
+    return try result.toOwnedSlice(gpa);
 }

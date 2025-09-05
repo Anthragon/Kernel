@@ -109,6 +109,23 @@ fn get_partition_fs(part: *PartEntry) ?*FileSystemEntry {
     return null;
 }
 
+pub fn set_mount_point(node: *FsNode, path: [*:0]const u8) Result(void) {
+    
+    const path_slice = std.mem.sliceTo(path, 0);
+    const path_separator = std.mem.lastIndexOfLinear(u8, path_slice, "/") orelse std.debug.panic("Invalid Mount point '{s}'", .{path});
+    const dir_path = allocator.dupeZ(u8, path_slice[0..path_separator]) catch root.oom_panic();
+    defer allocator.free(dir_path);
+    const node_name = allocator.dupeZ(u8, path_slice[path_separator + 1 ..]) catch root.oom_panic();
+    defer allocator.free(node_name);
+
+    const parent_node: Result(*FsNode) = get_node(dir_path);
+    if (!parent_node.isok()) return .err(parent_node.@"error");
+    const mountpoint = default_nodes.MountPoint.init(node_name, node);
+
+    _ = parent_node.unwrap().?.append(&mountpoint.node);
+    return .retvoid();
+}
+
 /// Dumps the content of the `node` directory
 pub fn lsdir(node: *FsNode) callconv(.c) void {
     var iterator = node.get_iterator().value;

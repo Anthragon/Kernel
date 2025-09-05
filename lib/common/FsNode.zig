@@ -6,7 +6,6 @@ const interop = root.interop;
 const Result = interop.Result;
 
 pub const FsNode = extern struct {
-
     pub const FsNodeVtable = extern struct {
         append_node: ?*const fn (self: *FsNode, node: *FsNode) callconv(.c) Result(void) = null,
         branch: ?*const fn (self: *FsNode, path: [*:0]const u8) callconv(.c) Result(*FsNode) = null,
@@ -36,18 +35,18 @@ pub const FsNode = extern struct {
     /// Says if the node is iterable (e.g. Directories)
     /// or not (e.g. Files)
     iterable: bool,
+    // Says if the node represents physical or virtual entry
+    physical: bool,
 
     /// Hook for the node's virtual functions
     vtable: *const FsNodeVtable,
-
 
     pub fn append(s: *@This(), node: *FsNode) callconv(.c) Result(void) {
         if (s.vtable.append_node) |appn| return appn(s, node);
         return .err(.notImplemented);
     }
     pub fn branch(s: *@This(), path: [*:0]const u8) callconv(.c) Result(*FsNode) {
-        
-        if (s.vtable.branch) |br| return br(s, path); 
+        if (s.vtable.branch) |br| return br(s, path);
         if (!s.iterable) return .err(.notIterable);
 
         // Default branching
@@ -56,7 +55,7 @@ pub const FsNode = extern struct {
         const j: usize = std.mem.indexOf(u8, pathslice[i..], "/") orelse pathslice.len;
 
         var iterator = s.get_iterator().value;
-        
+
         var q: ?*FsNode = null;
         while (iterator.next()) |node| {
             const nodename = std.mem.sliceTo(node.name, 0);
@@ -65,7 +64,7 @@ pub const FsNode = extern struct {
                 break;
             }
         }
-        
+
         // If q is null, return error
         if (q == null) return .err(.invalidPath);
 
@@ -103,7 +102,6 @@ pub const FsNode = extern struct {
 
         return buf;
     }
-    
 };
 
 pub const NodeIterator = extern struct {

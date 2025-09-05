@@ -20,6 +20,7 @@ pub var root_wrapper: FsNode = .{
     .type = "Root",
     .type_id = "root",
     .iterable = true,
+    .physical = false,
     .vtable = &vtable,
 };
 
@@ -31,13 +32,11 @@ pub fn init() void {
     // Creating dev node
     var fs_dev = default_nodes.VirtualDirectory.init("dev");
     _ = vfs_root.node.append(&fs_dev.node);
-
 }
 
 pub fn chroot(newroot: *FsNode) void {
     pfs_root = newroot;
 }
-
 
 fn initialize_virtual_root() void {
     // Creating virtual root node
@@ -64,13 +63,9 @@ fn append(_: *FsNode, node: *FsNode) callconv(.c) Result(void) {
 fn getchild(_: *FsNode, index: usize) callconv(.c) Result(*FsNode) {
     const vfs_children = vfs_root.children.values();
 
-    if (index < vfs_children.len) return .val(vfs_children[index])
-    else if (pfs_root) |r| return r.get_child(index - vfs_children.len)
-
-    else return .err(.outOfBounds);
+    if (index < vfs_children.len) return .val(vfs_children[index]) else if (pfs_root) |r| return r.get_child(index - vfs_children.len) else return .err(.outOfBounds);
 }
 fn branch(_: *FsNode, path: [*:0]const u8) callconv(.c) Result(*FsNode) {
-
     const pathslice = std.mem.sliceTo(path, 0);
 
     const i: usize = std.mem.indexOf(u8, pathslice, "/") orelse pathslice.len;
@@ -79,7 +74,7 @@ fn branch(_: *FsNode, path: [*:0]const u8) callconv(.c) Result(*FsNode) {
     var vcdict = vfs_root.children;
     if (vcdict.contains(nodename)) {
         const node = vcdict.get(nodename).?;
-        if (i != pathslice.len) return node.branch(path[i+1..]);
+        if (i != pathslice.len) return node.branch(path[i + 1 ..]);
         return .val(node);
     }
 
