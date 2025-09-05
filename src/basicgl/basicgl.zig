@@ -44,8 +44,8 @@ pub fn init(fb: []u8, w: usize, h: usize, p: usize) void {
     width = w;
     pps = framebuffer.len / height;
 
-    grid_width = @divFloor(width - margin_h*2, font_width);
-    grid_height = @divFloor(height - margin_v*2, font_height);
+    grid_width = @divFloor(width - margin_h * 2, font_width);
+    grid_height = @divFloor(height - margin_v * 2, font_height);
 
     log.info(
         \\
@@ -77,10 +77,10 @@ pub fn clear() void {
             \\   decq   %rcx
             \\   jne    1b
             :
-            : [dst]  "r" (fb_ptr),
+            : [dst] "r" (fb_ptr),
               [blocks] "r" (blocks),
-              [color] "r" (col)
-            : "rax","rcx","rdi","xmm0","memory","cc"
+              [color] "r" (col),
+            : .{ .rax = true, .rcx = true, .rdi = true, .xmm0 = true, .memory = true, .cc = true }
         );
     }
 
@@ -99,13 +99,13 @@ pub fn draw_line(str: []const u8, line: usize) void {
     var i: usize = 0;
     while (i < str.len and i < grid_width and str[i] != 0) : (i += 1)
         draw_char(str[i], i, line);
-    
+
     while (i < grid_width) : (i += 1) clear_char(i, line);
 }
 pub fn draw_char(c: u8, posx: usize, posy: usize) void {
     if (posx > grid_width or posy > grid_height) return;
 
-    const char_base = font[c  * font_height ..];
+    const char_base = font[c * font_height ..];
 
     const gx = posx * font_width + font_width;
     const gy = posy * font_height + font_height;
@@ -165,12 +165,11 @@ pub fn draw_char(c: u8, posx: usize, posy: usize) void {
             \\ movl    %edi,   (%[dst])
             \\ addq    $4,     %[dst]
             :
-            :
-                [msk] "r" (c_line),
-                [dst] "r" (dst_ptr),
-                [cfg] "r" (fg_color),
-                [cbg] "r" (bg_color),
-            : "rdi","rsi","memory","cc"
+            : [msk] "r" (c_line),
+              [dst] "r" (dst_ptr),
+              [cfg] "r" (fg_color),
+              [cbg] "r" (bg_color),
+            : .{ .rdi = true, .rsi = true, .memory = true, .cc = true }
         );
     }
 }
@@ -181,7 +180,6 @@ pub fn clear_char(posx: usize, posy: usize) void {
     const gy = posy * font_height + font_height;
 
     for (0..font_height) |y| {
-
         const dst_index = gx + (gy + y) * pps;
         const dst_ptr: [*]Pixel = framebuffer[dst_index..].ptr;
         const blocks: usize = 2;
@@ -199,10 +197,9 @@ pub fn clear_char(posx: usize, posy: usize) void {
             \\   jne 1b
             :
             : [dst] "r" (dst_ptr),
-            [blocks] "r" (blocks),
-            [color] "r" (bg_color)
-            : "rax","rcx","rdi","xmm0","memory","cc"
+              [blocks] "r" (blocks),
+              [color] "r" (bg_color),
+            : .{ .rax = true, .rcx = true, .rdi = true, .xmm0 = true, .memory = true, .cc = true }
         );
-
     }
 }

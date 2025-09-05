@@ -35,7 +35,7 @@ pub fn init() void {
 
     _ = root.capabilities.create_callable(fs_resource, "lsdir", @ptrCast(&lsdir)) catch unreachable;
     _ = root.capabilities.create_callable(fs_resource, "lsroot", @ptrCast(&lsroot)) catch unreachable;
-    
+
     _ = root.capabilities.create_callable(fs_resource, "chroot", @ptrCast(&chroot)) catch unreachable;
 
     _ = root.capabilities.create_callable(fs_resource, "append_file_system", @ptrCast(&append_file_system)) catch unreachable;
@@ -44,7 +44,6 @@ pub fn init() void {
     _ = root.capabilities.create_callable(fs_resource, "mount_disk", @ptrCast(&mount_disk)) catch unreachable;
     _ = root.capabilities.create_callable(fs_resource, "mount_part", @ptrCast(&mount_part)) catch unreachable;
     _ = root.capabilities.create_callable(fs_resource, "mount_disk_by_identifier_part_by_identifier", @ptrCast(&mount_disk_by_identifier_part_by_identifier)) catch unreachable;
-
 }
 
 pub inline fn get_fs_allocator() std.mem.Allocator {
@@ -79,7 +78,6 @@ fn remove_file_system(name: ?[*:0]const u8) callconv(.c) void {
     allocator.destroy(instance);
 }
 
-
 pub fn mount_disk(disk: *anyopaque) void {
     _ = disk;
 }
@@ -90,49 +88,39 @@ pub fn mount_part(part: *PartEntry) *FsNode {
     log.debug("Mounting with {s}...", .{fs.name orelse "-"});
     part.file_system = fs;
     return fs.vtable.mount(part);
-
 }
 pub fn mount_disk_by_identifier_part_by_identifier(disk: [*:0]const u8, part: [*:0]const u8) callconv(.c) *FsNode {
     log.debug("mount requested - {s} : {s}", .{ disk, part });
 
-    const getdbipbi: *const fn ([*:0]const u8, [*:0]const u8) callconv(.c) ?*lib.common.PartEntry = 
-        @ptrCast(@alignCast((root.capabilities.get_node("Devices.MassStorage.get_disk_by_identifier_part_by_identifier")
-        orelse @panic("Callable not found!")).data.callable));
-    
+    const getdbipbi: *const fn ([*:0]const u8, [*:0]const u8) callconv(.c) ?*lib.common.PartEntry =
+        @ptrCast(@alignCast((root.capabilities.get_node("Devices.MassStorage.get_disk_by_identifier_part_by_identifier") orelse @panic("Callable not found!")).data.callable));
+
     const entry = getdbipbi(disk, part) orelse @panic("Trying to mount a null partition entry!");
     return mount_part(entry);
 }
 
 fn get_partition_fs(part: *PartEntry) ?*FileSystemEntry {
-
     for (fileSystems.values()) |i| {
         log.debug("Testing {s}...", .{i.name.?});
 
         const res = i.vtable.scan(part);
         if (res) return i;
-
     }
     return null;
-
 }
-
 
 /// Dumps the content of the `node` directory
 pub fn lsdir(node: *FsNode) callconv(.c) void {
-
     var iterator = node.get_iterator().value;
     while (iterator.next()) |n| {
-        log.info("{s: <15} {s}", .{n.name, n.type});
+        log.info("{s: <15} {s}", .{ n.name, n.type });
     }
-
 }
 /// Dumps all the file system
 pub fn lsroot() callconv(.c) void {
-
-    var buffer: std.ArrayList(u8) = .init(allocator);
-    defer buffer.deinit();
-
-    const writer = buffer.writer();
+    var buffer: std.ArrayList(u8) = .empty;
+    defer buffer.deinit(allocator);
+    const writer = buffer.writer(allocator);
 
     const Entry = struct {
         iter: FsNode.FsNodeIterator,
@@ -151,18 +139,15 @@ pub fn lsroot() callconv(.c) void {
         var last = &stack.items[stack.items.len - 1];
 
         if (last.iter.next()) |node| {
-
             for (0..last.level) |_| writer.writeAll("  ") catch unreachable;
 
             if (node.iterable) {
-
                 const name = std.mem.sliceTo(node.name, 0);
-                writer.print("{s}/", .{ name }) catch unreachable;
+                writer.print("{s}/", .{name}) catch unreachable;
                 for (name.len..19) |_| writer.writeByte(' ') catch unreachable;
-                writer.print(" {s}", .{ node.type }) catch unreachable;
+                writer.print(" {s}", .{node.type}) catch unreachable;
             } else {
-                
-                writer.print("{s: <20} {s: <25}", .{ node.name, node.type}) catch unreachable;
+                writer.print("{s: <20} {s: <25}", .{ node.name, node.type }) catch unreachable;
 
                 const size = node.get_size();
                 if (size.isok()) {
@@ -170,17 +155,15 @@ pub fn lsroot() callconv(.c) void {
                         size.value,
                         &lib.utils.units.data,
                     );
-                    writer.print(" {d:.2} {s}", .{unit.@"0", unit.@"1"}) catch unreachable;
+                    writer.print(" {d:.2} {s}", .{ unit.@"0", unit.@"1" }) catch unreachable;
                 } else writer.print("Unk", .{}) catch unreachable;
             }
 
             if (node.iterable) {
-
                 const iter = node.get_iterator();
 
                 if (iter.unwrap()) |v| {
-                    stack.append(allocator, 
-                    .{
+                    stack.append(allocator, .{
                         .iter = v,
                         .level = last.level + 1,
                     }) catch root.oom_panic();
@@ -188,12 +171,8 @@ pub fn lsroot() callconv(.c) void {
             }
 
             writer.writeByte('\n') catch unreachable;
-
-        }
-        else _ = stack.pop();
-
+        } else _ = stack.pop();
     }
 
-    log.info("{s}", .{ buffer.items });
-
+    log.info("{s}", .{buffer.items});
 }

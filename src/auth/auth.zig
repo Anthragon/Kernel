@@ -40,7 +40,7 @@ pub const User = struct {
 pub fn init() void {
     log.debug(" ## Setting up auth service...", .{});
 
-    user_list = UserList.init(allocator);
+    user_list = UserList.empty;
 
     // Appending the virtual system users
     append_user(.{
@@ -52,48 +52,32 @@ pub fn init() void {
         .is_hiden = false,
         .is_system = true,
         .is_admin = true,
-        .is_global = true
-   });
-
+        .is_global = true,
+    });
 }
 
-pub fn append_user(options: struct {
-    user_name: []const u8,
-    user_passwd: []const u8,
-
-    is_hiden: bool = false,
-    is_system: bool = false,
-    is_admin: bool = false,
-    is_global: bool = false,
-
-    creation_timestamp: ?u64 = null
-}
-) void {
-    
-    var nuser = allocator.create(User) catch @panic("OOM");
+pub fn append_user(options: struct { user_name: []const u8, user_passwd: []const u8, is_hiden: bool = false, is_system: bool = false, is_admin: bool = false, is_global: bool = false, creation_timestamp: ?u64 = null }) void {
+    var nuser = allocator.create(User) catch root.oom_panic();
     const index = user_list.items.len;
 
     nuser.* = .{
-
         .index = index,
         .uuid = Guid.new(),
         .name = options.user_name,
         .passwd = options.user_passwd,
-
         .is_hiden = options.is_hiden,
         .is_system = options.is_system,
         .is_admin = options.is_admin,
         .is_global = options.is_global,
-
-        .creation_timestamp = undefined
+        .creation_timestamp = undefined,
     };
 
     nuser.creation_timestamp = if (options.creation_timestamp == null)
-        root.system.time.timestamp() else
+        root.system.time.timestamp()
+    else
         options.creation_timestamp.?;
 
-    user_list.append(nuser) catch @panic("OOM");
-
+    user_list.append(allocator, nuser) catch root.oom_panic();
 }
 
 pub fn get_user_by_index(index: usize) ?*User {
@@ -102,12 +86,10 @@ pub fn get_user_by_index(index: usize) ?*User {
 }
 
 pub fn lsusers() void {
-    
     log.info("Listing users:", .{});
 
     for (user_list.items) |i| {
-        log.info("{: <2} - {s} {s} {c}{c}{c}", .{
-
+        log.info("{: <2} - {s} {f} {c}{c}{c}", .{
             i.index,
             i.name,
             i.uuid,
@@ -117,5 +99,4 @@ pub fn lsusers() void {
             @as(u8, if (i.is_global) 'G' else '-'),
         });
     }
-
 }

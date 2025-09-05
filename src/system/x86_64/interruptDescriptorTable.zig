@@ -38,7 +38,7 @@ pub fn install() void {
 pub fn set_privilege(int: u8, privilege: sys.Privilege) void {
     entries[@intCast(int)].privilege = switch (privilege) {
         .kernel => 0,
-        .user => 3
+        .user => 3,
     };
 }
 
@@ -49,11 +49,14 @@ pub inline fn get_ptr() Pointer {
 
 fn load_idt(idt: *[256]Entry) void {
     var idtp = Pointer{ .limit = @intCast(@sizeOf(Entry) * 256 - 1), .base = @intFromPtr(idt) };
-    asm volatile ("lidt (%[idtp])" :: [idtp] "r" (&idtp));
+    asm volatile ("lidt (%[idtp])"
+        :
+        : [idtp] "r" (&idtp),
+    );
 
     log.debug("IDT is now {X}", .{idtp.base});
 }
-fn set_entry(self: *[256]Entry, num: u8, b: *const fn () callconv(.Naked) void, selector: u16, privilege: u2) void {
+fn set_entry(self: *[256]Entry, num: u8, b: *const fn () callconv(.naked) void, selector: u16, privilege: u2) void {
     const ie = &self[num];
 
     const baseAsInt = @intFromPtr(b);
@@ -69,16 +72,15 @@ fn set_entry(self: *[256]Entry, num: u8, b: *const fn () callconv(.Naked) void, 
     ie.offset_mid = @intCast((baseAsInt >> 16) & 0xFFFF);
     ie.offset_high = @intCast(baseAsInt >> 32);
 }
-fn make_handler(comptime intnum: u8) fn () callconv(.Naked) void {
+fn make_handler(comptime intnum: u8) fn () callconv(.naked) void {
     return struct {
-        fn func() callconv(.Naked) void {
+        fn func() callconv(.naked) void {
             const ec = if (comptime (!has_error_code(intnum))) "push $0\n" else "";
-            asm volatile (
-                ec ++
-                \\ push %[intnum]
-                \\ jmp interrupt_common
+            asm volatile (ec ++
+                    \\ push %[intnum]
+                    \\ jmp interrupt_common
                 :
-                : [intnum] "i" (intnum)
+                : [intnum] "i" (intnum),
             );
         }
     }.func;
@@ -103,7 +105,7 @@ fn has_error_code(intnum: u8) bool {
     };
 }
 
-export fn interrupt_common() callconv(.Naked) void {
+export fn interrupt_common() callconv(.naked) void {
     asm volatile (
         \\push %%rax
         \\push %%rbx

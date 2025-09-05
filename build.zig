@@ -83,6 +83,7 @@ pub fn build(b: *std.Build) void {
         .name = "kernel",
         .root_module = kernel_mod,
         .zig_lib_dir = undefined,
+        .use_llvm = true,
     });
     kernel_exe.entry = .{ .symbol_name = "__boot_entry__" };
     switch (target_arch) {

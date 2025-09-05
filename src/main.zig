@@ -42,40 +42,39 @@ const log = std.log.scoped(.main);
 var boot_info: BootInfo = undefined;
 
 // linking entry point symbol
-comptime { _ = @import("boot/limine/entry.zig"); }
+comptime {
+    _ = @import("boot/limine/entry.zig");
+}
 
 pub fn main(_boot_info: BootInfo) noreturn {
     boot_info = _boot_info;
     system.assembly.flags.clear_interrupt();
 
     // Setting up basic text graphics mode
-    basicgl.init(
-        boot_info.framebuffer.framebuffer,
-        boot_info.framebuffer.width,
-        boot_info.framebuffer.height,
-        boot_info.framebuffer.pps
-    );
+    basicgl.init(boot_info.framebuffer.framebuffer, boot_info.framebuffer.width, boot_info.framebuffer.height, boot_info.framebuffer.pps);
     basicgl.clear();
 
     // Setupping system-dependant resources
-    system.init() catch { @panic("System could not be initialized!"); };
+    system.init() catch {
+        @panic("System could not be initialized!");
+    };
     // Setting up Virtual memory manager
     system.vmm.init();
     // Setting up interrupts
     @import("interrupts.zig").install_interrupts();
 
     // Printing hello world
-    log.info("\nHello, World from {s}!", .{ @tagName(system.arch) });
- 
+    log.info("\nHello, World from {s}!", .{@tagName(system.arch)});
+
     // Initializing kernel services
     log.debug("\n# Initializing services", .{});
 
     capabilities.init(); // Capabilities must aways initialize first!
 
     fs.init();
-    auth.init();   
+    auth.init();
     modules.init();
-    devices.init();       
+    devices.init();
     threading.init();
     system.time.init();
 
@@ -91,9 +90,9 @@ pub fn main(_boot_info: BootInfo) noreturn {
         @as([*]u8, @ptrFromInt(std.mem.alignForward(
             usize,
             boot_info.kernel_stack_pointer_base,
-            16
-        )))[0 .. 0x1000],
-        255
+            16,
+        )))[0..0x1000],
+        255,
     ) catch unreachable;
     log.debug(" # Adam is ready!", .{});
 
@@ -102,7 +101,7 @@ pub fn main(_boot_info: BootInfo) noreturn {
     log.info("\nDumping random data to see if everything is right:", .{});
 
     log.info("", .{});
-    log.info("Time: {} ({})", .{ system.time.get_datetime(), system.time.timestamp() });
+    log.info("Time: {f} ({})", .{ system.time.get_datetime(), system.time.timestamp() });
     log.info("", .{});
     auth.lsusers();
     log.info("", .{});

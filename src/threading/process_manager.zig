@@ -13,7 +13,6 @@ var proc_list: []?*Process = undefined;
 const Process = threading.Process;
 
 pub fn init() void {
-
     proc_list = allocator.alloc(?*threading.Process, 32) catch {
         log.info("Failed to allocate process list", .{});
         @panic("OOM");
@@ -31,7 +30,6 @@ pub fn init() void {
         .creation_timestamp = root.system.time.timestamp(),
     };
     proc_list[0] = kproc;
-
 }
 
 // TODO return here when the concept of process is
@@ -79,27 +77,22 @@ pub fn lsproc() void {
             });
         }
     }
-
 }
 pub fn lstasks() void {
     log.info("Listing tasks:", .{});
 
     for (proc_list) |proc| {
         if (proc) |p| {
-            
             for (p.tasks) |task| {
                 if (task) |t| {
-
-                    log.info("{X:0>4}:{X:0>4} - {s} - created at {}", .{
+                    log.info("{X:0>4}:{X:0>4} - {s} - created at {f}", .{
                         p.process_id,
                         t.task_id,
                         @tagName(t.state),
                         root.system.time.DateTime.from_timestamp(t.creation_timestamp),
                     });
-
                 }
             }
-
         }
     }
 }

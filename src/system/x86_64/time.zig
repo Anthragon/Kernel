@@ -3,7 +3,6 @@ const root = @import("root");
 const ports = @import("ports.zig");
 const global = @import("../time.zig");
 
-
 pub fn timestamp() u64 {
     return rtc_to_unix(read_rtc_stable());
 }
@@ -31,16 +30,8 @@ pub fn get_time() global.Time {
 pub fn get_datetime() global.DateTime {
     const datetime = read_rtc_stable();
 
-    return .{
-        .day = datetime.day,
-        .month = datetime.month,
-        .year = datetime.year,
-        .seconds = datetime.sec,
-        .minutes = datetime.min,
-        .hours = datetime.hour
-    };
+    return .{ .day = datetime.day, .month = datetime.month, .year = datetime.year, .seconds = datetime.sec, .minutes = datetime.min, .hours = datetime.hour };
 }
-
 
 // CMOS IO operations
 inline fn is_updating() bool {
@@ -122,7 +113,7 @@ fn bcd_to_bin(x: u8) u8 {
 
 // i fucking HATE unix
 fn rtc_to_unix(r: RTCData) u64 {
-    const days_per_month = [_]u8{31,28,31,30,31,30,31,31,30,31,30,31};
+    const days_per_month = [_]u8{ 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 };
 
     var days: u64 = 0;
 

@@ -6,12 +6,12 @@ const log = std.log.scoped(.x86_64_GDT);
 
 pub var tables: [5 + 2]Entry = undefined;
 pub const selector = .{
-    .null =       @as(u16, 0 << 3),
-    .code64 =     @as(u16, 1 << 3),
-    .data64 =     @as(u16, 2 << 3),
+    .null = @as(u16, 0 << 3),
+    .code64 = @as(u16, 1 << 3),
+    .data64 = @as(u16, 2 << 3),
     .usercode64 = @as(u16, 3 << 3 | 3),
     .userdata64 = @as(u16, 4 << 2 | 3),
-    .tss =        @as(u16, 5 << 3),
+    .tss = @as(u16, 5 << 3),
 };
 var current_ptr: Pointer = undefined;
 
@@ -26,15 +26,7 @@ pub const Entry = packed struct {
     base_high: u8,
 };
 
-pub const Access = packed struct(u8) {
-    acessed: bool,
-    readable_writeable: bool,
-    direction_conforming: bool,
-    executable: bool,
-    segment_type: enum(u1) { system = 0, data = 1 },
-    privilege: u2,
-    present: bool
-};
+pub const Access = packed struct(u8) { acessed: bool, readable_writeable: bool, direction_conforming: bool, executable: bool, segment_type: enum(u1) { system = 0, data = 1 }, privilege: u2, present: bool };
 pub const Flags = packed struct(u4) {
     available: bool,
     long_mode: bool,
@@ -44,7 +36,6 @@ pub const Flags = packed struct(u4) {
 
 // TODO see why this shit is important and refactorate it
 pub const Tss = packed struct {
-    
     _rsvd_0: u32 = 0,
 
     // The Stack Pointers used to load the stack when a privilege level
@@ -85,17 +76,14 @@ pub const Tss = packed struct {
 };
 var tss: Tss = undefined;
 
-
 pub fn install() void {
 
     // Null entry
-    set_gdt_entry(&tables[0],
-        @bitCast(@as(u8, 0)),
-        @bitCast(@as(u4, 0))
-    );
+    set_gdt_entry(&tables[0], @bitCast(@as(u8, 0)), @bitCast(@as(u4, 0)));
 
     // Kernel code
-    set_gdt_entry(&tables[1],
+    set_gdt_entry(
+        &tables[1],
         .{
             .acessed = false,
             .readable_writeable = true,
@@ -105,15 +93,12 @@ pub fn install() void {
             .privilege = 0,
             .present = true,
         },
-        .{
-            .available = false,
-            .long_mode = true,
-            .granularity = .page
-        },
+        .{ .available = false, .long_mode = true, .granularity = .page },
     );
-    
+
     // Kernel data
-    set_gdt_entry(&tables[2],
+    set_gdt_entry(
+        &tables[2],
         .{
             .acessed = false,
             .readable_writeable = true,
@@ -123,15 +108,12 @@ pub fn install() void {
             .privilege = 0,
             .present = true,
         },
-        .{
-            .available = false,
-            .long_mode = true,
-            .granularity = .page
-        },
+        .{ .available = false, .long_mode = true, .granularity = .page },
     );
 
     // User code
-    set_gdt_entry(&tables[3],
+    set_gdt_entry(
+        &tables[3],
         .{
             .acessed = false,
             .readable_writeable = true,
@@ -141,15 +123,12 @@ pub fn install() void {
             .privilege = 3,
             .present = true,
         },
-        .{
-            .available = false,
-            .long_mode = true,
-            .granularity = .page
-        },
+        .{ .available = false, .long_mode = true, .granularity = .page },
     );
-    
+
     // User data
-    set_gdt_entry(&tables[4],
+    set_gdt_entry(
+        &tables[4],
         .{
             .acessed = false,
             .readable_writeable = true,
@@ -159,11 +138,7 @@ pub fn install() void {
             .privilege = 3,
             .present = true,
         },
-        .{
-            .available = false,
-            .long_mode = true,
-            .granularity = .page
-        },
+        .{ .available = false, .long_mode = true, .granularity = .page },
     );
 
     // Tast state segment
@@ -172,7 +147,10 @@ pub fn install() void {
     tss = .{};
 
     load_gdt(&tables);
-    asm volatile ("ltr %[a]" :: [a] "r" (selector.tss));
+    asm volatile ("ltr %[a]"
+        :
+        : [a] "r" (selector.tss),
+    );
 }
 /// Returns the pointer to the last installed GDT
 pub inline fn get_ptr() Pointer {
@@ -184,7 +162,10 @@ fn load_gdt(gdt: []Entry) void {
     log.debug("GDT at {x}", .{@intFromPtr(gdt.ptr)});
 
     // load gdt
-    asm volatile ("lgdt (%[gdt])" : : [gdt] "r" (&gdtp), );
+    asm volatile ("lgdt (%[gdt])"
+        :
+        : [gdt] "r" (&gdtp),
+    );
 
     // use data selectors
     asm volatile (
@@ -193,7 +174,8 @@ fn load_gdt(gdt: []Entry) void {
         \\ mov %[dsel], %%gs
         \\ mov %[dsel], %%es
         \\ mov %[dsel], %%ss
-        : : [dsel] "rm" (selector.data64),
+        :
+        : [dsel] "rm" (selector.data64),
     );
 
     // use code selectors
@@ -203,14 +185,14 @@ fn load_gdt(gdt: []Entry) void {
         \\ push %%rax
         \\ lretq
         \\ 1:
-        : : [csel] "i" (selector.code64),
-        : "rax"
+        :
+        : [csel] "i" (selector.code64),
+        : .{ .rax = true }
     );
 
     current_ptr = gdtp;
 }
 fn set_gdt_entry(gdt: *Entry, access: Access, flags: Flags) void {
-
     const base: u32 = 0;
     const limit: u20 = 0xffff;
 
@@ -225,11 +207,10 @@ fn set_gdt_entry(gdt: *Entry, access: Access, flags: Flags) void {
     gdt.flags = flags;
 }
 fn set_tss_entry(gdt: *[2]Entry, tssref: *Tss) void {
-
     const base = @intFromPtr(tssref);
     const limit = @sizeOf(Tss) - 1;
 
-    const gdt_0 = (limit & 0xffff) | 
+    const gdt_0 = (limit & 0xffff) |
         ((base & 0xffffff) << 16) |
         (0x89 << 40) |
         ((limit >> 16) & 0xF) << 48 |
@@ -238,5 +219,4 @@ fn set_tss_entry(gdt: *[2]Entry, tssref: *Tss) void {
 
     gdt[0] = @bitCast(gdt_0);
     gdt[1] = @bitCast(gdt_1);
-
 }

@@ -21,7 +21,6 @@ pub fn install_interrupts() void {
 
     interrupts.set_vector(0x0d, &general_protection_fault, .kernel);
     interrupts.set_vector(0x0e, &page_fault, .kernel);
-
 }
 
 fn division_error(frame: *TaskContext) void {
@@ -49,15 +48,14 @@ fn invalid_opcode(frame: *TaskContext) void {
     // Shows system-dependent error messages here
     switch (sys.arch) {
         .x86_64 => {
-            log.debug("(#UD) Fetched bytes: {X:0>2} {X:0>2} {X:0>2} {X:0>2}"
-            , .{
+            log.debug("(#UD) Fetched bytes: {X:0>2} {X:0>2} {X:0>2} {X:0>2}", .{
                 @as(*u8, @ptrFromInt(frame.rip)).*,
                 @as(*u8, @ptrFromInt(frame.rip + 1)).*,
                 @as(*u8, @ptrFromInt(frame.rip + 2)).*,
                 @as(*u8, @ptrFromInt(frame.rip + 3)).*,
             });
         },
-        else => unreachable
+        else => unreachable,
     }
 
     root.panic("Invalid OpCode", null, frame.get_instruction_ptr());
@@ -67,14 +65,13 @@ fn double_fault(frame: *TaskContext) void {
     log.debug("(#DF) The same exception happened two times.", .{});
 
     log.debug("\n(#DF) Dumping frame:", .{});
-    log.debug("{}", .{ frame });
+    log.debug("{f}", .{frame});
 
     root.panic("Double fault", null, frame.get_instruction_ptr());
     sys.assembly.halt();
 }
 
 fn general_protection_fault(frame: *TaskContext) void {
-
     log.debug("\n(#GP) General Protection Exception!", .{});
 
     // Shows system-dependent error messages here
@@ -82,27 +79,22 @@ fn general_protection_fault(frame: *TaskContext) void {
         .x86_64 => {
             const err: GeneralProtection_err_x86_64 = @bitCast(frame.error_code);
 
-            log.debug("(#GP) Generated{s} when accessing index {} of the {s}", .{
-                if (err.external) " externally" else "",
-                err.index,
-                switch (err.table) {
-                    0b00 => "GDT",
-                    0b10 => "LDT",
-                    else => "IDT"
-                }
-            });
+            log.debug("(#GP) Generated{s} when accessing index {} of the {s}", .{ if (err.external) " externally" else "", err.index, switch (err.table) {
+                0b00 => "GDT",
+                0b10 => "LDT",
+                else => "IDT",
+            } });
         },
-        else => unreachable
+        else => unreachable,
     }
-    
+
     log.debug("(#GP) Dumping frame:", .{});
-    log.debug("{}", .{ frame });
+    log.debug("{f}", .{frame});
 
     root.panic("General Protection fault", null, frame.get_instruction_ptr());
     sys.assembly.halt();
 }
 fn page_fault(frame: *TaskContext) void {
-
     log.debug("\n(#PF) Page Fault Exception!", .{});
 
     // Shows system-dependent error messages here
@@ -118,39 +110,17 @@ fn page_fault(frame: *TaskContext) void {
                 \\(#PF) -    rsvd write:     {s}
                 \\(#PF) -    pkey violation: {s}  
                 \\(#PF) -    shadow stack:   {s}
-            , .{
-                if (err.page_present) "YES" else "NO",
-                @tagName(err.access),
-                if (err.user_mode) "3" else "0",
-                if (err.reserved_write) "YES" else "NO",
-                if (err.protkey_violation) "YES" else "NO",
-                if (err.shadow_stack) "YES" else "NO"
-            });
+            , .{ if (err.page_present) "YES" else "NO", @tagName(err.access), if (err.user_mode) "3" else "0", if (err.reserved_write) "YES" else "NO", if (err.protkey_violation) "YES" else "NO", if (err.shadow_stack) "YES" else "NO" });
         },
-        else => unreachable
+        else => unreachable,
     }
-    
+
     log.debug("\n(#PF) Dumping frame:", .{});
-    log.debug("{}", .{ frame });
+    log.debug("{f}", .{frame});
 
     root.panic("Page fault", null, frame.get_instruction_ptr());
     sys.assembly.halt();
 }
 
-
-const GeneralProtection_err_x86_64 = packed struct (u64) {
-    external: bool,
-    table: u2,
-    index: u13,
-    _: u48
-};
-const PageFault_err_x86_64 = packed struct(u64) {
-    page_present: bool,
-    access: enum(u1) { read = 0, write = 1 },
-    user_mode: bool,
-    reserved_write: bool,
-    instruction: bool,
-    protkey_violation: bool,
-    shadow_stack: bool,
-    _: u57
-};
+const GeneralProtection_err_x86_64 = packed struct(u64) { external: bool, table: u2, index: u13, _: u48 };
+const PageFault_err_x86_64 = packed struct(u64) { page_present: bool, access: enum(u1) { read = 0, write = 1 }, user_mode: bool, reserved_write: bool, instruction: bool, protkey_violation: bool, shadow_stack: bool, _: u57 };

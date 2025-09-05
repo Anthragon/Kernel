@@ -12,8 +12,8 @@ pub export var hhdm_request: limine.HhdmRequest = .{};
 pub export var rsdp_request: limine.RsdpRequest = .{};
 pub export var kfile_request: limine.KernelFileRequest = .{};
 
-pub export fn __boot_entry__() callconv(.C) noreturn {
-    
+pub export fn __boot_entry__() callconv(.c) noreturn {
+
     // Tiny subroutine to make sure some main
     // CPU extra features are enabled
     switch (root.system.arch) {
@@ -22,19 +22,29 @@ pub export fn __boot_entry__() callconv(.C) noreturn {
             var cr0: usize = 0;
             var cr4: usize = 0;
 
-            asm volatile ("mov %%cr0, %[out]" : [out] "=r"(cr0));
+            asm volatile ("mov %%cr0, %[out]"
+                : [out] "=r" (cr0),
+            );
             cr0 &= ~@as(usize, 1 << 2); // EM = 0
             cr0 |= @as(usize, 1 << 1); // MP = 1
-            asm volatile ("mov %[in], %%cr0" :: [in] "r"(cr0));
+            asm volatile ("mov %[in], %%cr0"
+                :
+                : [in] "r" (cr0),
+            );
 
-            asm volatile ("mov %%cr4, %[out]" : [out] "=r"(cr4));
-            cr4 |= @as(usize, 1 << 9);  // OSFXSR
+            asm volatile ("mov %%cr4, %[out]"
+                : [out] "=r" (cr4),
+            );
+            cr4 |= @as(usize, 1 << 9); // OSFXSR
             cr4 |= @as(usize, 1 << 10); // OSXMMEXCPT
-            asm volatile ("mov %[in], %%cr4" :: [in] "r"(cr4));
-            
+            asm volatile ("mov %[in], %%cr4"
+                :
+                : [in] "r" (cr4),
+            );
+
             asm volatile ("fninit");
         },
-        else => {}
+        else => {},
     }
 
     if (!base_revision.is_supported()) done();
@@ -55,20 +65,23 @@ pub export fn __boot_entry__() callconv(.C) noreturn {
     const rsdp = rsdp_request.response.?;
     var stbp: usize = undefined;
 
-    asm volatile ("mov %%rbp, %[out]" : [out] "=r" (stbp) ::);
-    
+    asm volatile ("mov %%rbp, %[out]"
+        : [out] "=r" (stbp),
+        :
+        : .{});
+
     const kfile = kfile_request.response.?.kernel_file;
     const boot_device: boot.BootDevice = b: {
         if (kfile.mbr_disk_id != 0) {
             break :b .{ .mbr = .{
                 .disk_id = kfile.mbr_disk_id,
                 .partition_index = kfile.partition_index,
-            }};
+            } };
         } else {
             break :b .{ .gpt = .{
                 .disk_uuid = @bitCast(kfile.gpt_disk_uuid),
                 .part_uuid = @bitCast(kfile.gpt_part_uuid),
-            }};
+            } };
         }
     };
 
@@ -79,12 +92,7 @@ pub export fn __boot_entry__() callconv(.C) noreturn {
         .hhdm_base_offset = hhdm.offset,
         .rsdp_physical = @intFromPtr(rsdp.address),
 
-        .framebuffer = .{
-            .framebuffer = fbuffer.address[0 .. fbuffer_size],
-            .width = fbuffer.width,
-            .height = fbuffer.height,
-            .pps = fbuffer.pitch
-        },
+        .framebuffer = .{ .framebuffer = fbuffer.address[0..fbuffer_size], .width = fbuffer.width, .height = fbuffer.height, .pps = fbuffer.pitch },
 
         .memory_map = @ptrCast(mmap.entries_ptr[0..mmap.entry_count]),
 
@@ -108,4 +116,3 @@ fn done() noreturn {
 
     unreachable;
 }
-

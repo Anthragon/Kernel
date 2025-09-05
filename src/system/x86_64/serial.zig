@@ -1,16 +1,21 @@
 const std = @import("std");
 const ports = @import("ports.zig");
 
-pub const com_port: [4]u16 = .{0x3F8, 0x2F8, 0x3E8, 0x2E8};
+pub const com_port: [4]u16 = .{ 0x3F8, 0x2F8, 0x3E8, 0x2E8 };
 
-pub const SerialWriter = std.io.Writer(
-    *anyopaque,
-    error{},
-    serial_out
-);
+var COM1_serial_writer: std.io.Writer = .{
+    .buffer = &.{},
+    .end = 0,
+    .vtable = &serial_writer_vtable,
+};
+var COM2_serial_writer: std.io.Writer = .{
+    .buffer = &.{},
+    .end = 0,
+    .vtable = &serial_writer_vtable,
+};
+const serial_writer_vtable: std.io.Writer.VTable = .{ .drain = serial_out };
 
 pub fn init() !void {
-
     for (0..4) |i| {
         // Disabling device interrupts
         ports.outb(com_port[i] + 1, 0x00);
@@ -48,16 +53,36 @@ pub fn init() !void {
     }
 }
 
-pub inline fn chardev(dev: u8) SerialWriter {
-    return .{ .context = @ptrFromInt(dev) };
+pub fn chardev(dev: u8) *std.io.Writer {
+    return switch (dev) {
+        1 => &COM1_serial_writer,
+        2 => &COM2_serial_writer,
+
+        else => std.debug.panic("No chardev COM{}!", .{dev}),
+    };
 }
 
-fn serial_out(dev: *anyopaque, bytes: []const u8) !usize {
-    const devi: u8 = @truncate(@intFromPtr(dev));
-    uart_puts(devi - 1, bytes);
-    return bytes.len;
-}
+fn serial_out(w: *std.io.Writer, data: []const []const u8, splat: usize) !usize {
+    const dev: u8 = b: {
+        const wp = @intFromPtr(w);
 
+        if (wp == @intFromPtr(&COM1_serial_writer)) {
+            break :b 0;
+        } else if (wp == @intFromPtr(&COM2_serial_writer)) {
+            break :b 1;
+        } else @panic("Invalid chardev!");
+    };
+
+    _ = splat;
+
+    var count: usize = 0;
+    for (data) |i| {
+        uart_puts(dev, i);
+        count += i.len;
+    }
+
+    return count;
+}
 
 inline fn is_buffer_empty(dev: u8) bool {
     return (ports.inb(com_port[dev] + 5) & 0x20) != 0;

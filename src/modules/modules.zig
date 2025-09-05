@@ -22,15 +22,13 @@ pub fn init() void {
 pub fn lsmodules() void {
     log.info("Listing active modules:", .{});
     for (modules_map.values()) |i| {
-        log.info("{} - {s} {s} by {s} ({s} liscence) - {s}", .{ i.uuid, i.name, i.version, i.author, i.license, @tagName(i.status) });
+        log.info("{f} - {s} {s} by {s} ({s} liscence) - {s}", .{ i.uuid, i.name, i.version, i.author, i.license, @tagName(i.status) });
     }
 }
-
 
 pub inline fn get_module_by_uuid(uuid: Guid) ?*Module {
     return modules_map.getPtr(@bitCast(uuid));
 }
-
 
 pub export fn register_module(
     name: [*:0]const u8,
@@ -38,8 +36,7 @@ pub export fn register_module(
     author: [*:0]const u8,
     license: [*:0]const u8,
     uuid: u128,
-
-    init_func:   *const fn () callconv(.c) bool,
+    init_func: *const fn () callconv(.c) bool,
     deinit_func: *const fn () callconv(.c) void,
 ) Result(void) {
     register_module_internal(
@@ -53,7 +50,7 @@ pub export fn register_module(
         deinit_func,
     ) catch |err| return switch (err) {
         error.ModuleAlreadyRegistered => .err(.nameAlreadyUsed),
-        else => .err(.unexpected)
+        else => .err(.unexpected),
     };
     return .retvoid();
 }
@@ -63,8 +60,7 @@ fn register_module_internal(
     author: []const u8,
     license: []const u8,
     uuid: u128,
-
-    init_func:   *const fn () callconv(.c) bool,
+    init_func: *const fn () callconv(.c) bool,
     deinit_func: *const fn () callconv(.c) void,
 ) !void {
 
@@ -120,23 +116,13 @@ pub const Module = struct {
     license: []const u8,
     uuid: root.utils.Guid,
 
-    init:   *const fn () callconv(.c) bool,
+    init: *const fn () callconv(.c) bool,
     deinit: *const fn () callconv(.c) void,
 
     status: ModuleStatus,
     permissions: ModulePermissions,
 };
 
-pub const ModuleStatus = enum {
-    Waiting,
-    Ready,
-    Failed,
-    Active
-};
+pub const ModuleStatus = enum { Waiting, Ready, Failed, Active };
 
-pub const ModulePermissions = packed struct(u64) {
-    pci_devices: bool = false,
-    acpi_devices: bool = false,
-    usb_devices: bool = false,
-    _: u61 = 0
-};
+pub const ModulePermissions = packed struct(u64) { pci_devices: bool = false, acpi_devices: bool = false, usb_devices: bool = false, _: u61 = 0 };

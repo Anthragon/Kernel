@@ -4,12 +4,19 @@ const gl = root.basicgl;
 
 const max_screen_width = 200;
 const max_screen_height = 50;
-var screen_buffer: [max_screen_width * max_screen_height]u8 = [_]u8{ 0 } ** (max_screen_width * max_screen_height);
+var screen_buffer: [max_screen_width * max_screen_height]u8 = [_]u8{0} ** (max_screen_width * max_screen_height);
 var screenx: usize = 0;
 var screeny: usize = 0;
 
-pub const ScreenWriter = std.io.Writer(*anyopaque, error{}, screen_buffer_write);
-pub inline fn swriter() ScreenWriter { return .{ .context = undefined }; }
+var screen_writer: std.io.Writer = .{
+    .buffer = &.{},
+    .end = 0,
+    .vtable = &.{ .drain = screen_buffer_drain },
+};
+
+pub fn swriter() *std.io.Writer {
+    return &screen_writer;
+}
 
 pub fn redraw_screen() void {
     if (!gl.active) return;
@@ -18,40 +25,54 @@ pub fn redraw_screen() void {
     const sw = @min(max_screen_width, gl.grid_width);
     const mw = max_screen_width;
 
-    for (0 .. sh) |i| {
+    for (0..sh) |i| {
         const line = std.mem.sliceAsBytes(&screen_buffer)[i * mw .. i * mw + sw];
         gl.draw_line(line, i);
     }
 }
 
-fn screen_buffer_write(_: *anyopaque, bytes: []const u8) !usize {
+fn screen_buffer_drain(_: *std.io.Writer, data: []const []const u8, splen: usize) !usize {
+    _ = splen;
+
+    var count: usize = 0;
+    for (data) |bytes| {
+        screen_buffer_write(bytes);
+        count += bytes.len;
+    }
+
+    return count;
+}
+fn screen_buffer_write(bytes: []const u8) void {
     var lines: isize = 0;
-    for (bytes) |c| { if (c == '\n') lines += 1; }
+    for (bytes) |c| {
+        if (c == '\n') lines += 1;
+    }
 
     const sh: isize = @min(max_screen_height, gl.grid_height);
-    push_lines_up(@max(0, lines - (sh - @as(isize, @bitCast(screeny)) )));
+    push_lines_up(@max(0, lines - (sh - @as(isize, @bitCast(screeny)))));
 
     const sb = std.mem.sliceAsBytes(&screen_buffer);
 
     for (bytes) |c| {
         switch (c) {
-            '\n' => { screeny += 1; screenx = 0; },
+            '\n' => {
+                screeny += 1;
+                screenx = 0;
+            },
             '\r' => screenx = 0,
-            
-            '\t' => { 
+
+            '\t' => {
                 const off = std.mem.alignForward(usize, screenx, 4) - screenx;
                 for (0..off) |i| sb[screenx + i + screeny * max_screen_width] = ' ';
                 screenx += off;
             },
-            
+
             else => {
                 sb[screenx + screeny * max_screen_width] = c;
                 screenx += 1;
-            }
+            },
         }
     }
-
-    return bytes.len;
 }
 
 fn push_lines_up(offset: usize) void {
@@ -83,9 +104,8 @@ fn push_lines_up(offset: usize) void {
             :
             : [src] "r" (&dst[src_off]),
               [dst] "r" (&dst[dst_off]),
-              [blocks] "r" (blocks)
-            : "rcx","rsi","rdi","xmm0","memory","cc"
-        );
+              [blocks] "r" (blocks),
+            : .{ .rcx = true, .rsi = true, .rdi = true, .xmm0 = true, .memory = true, .cc = true });
     }
 
     for (0..offset) |j| {
@@ -103,9 +123,8 @@ fn push_lines_up(offset: usize) void {
             \\   jne    1b
             :
             : [dst] "r" (&dst[off]),
-              [blocks] "r" (blocks)
-            : "rcx","rdi","xmm0","memory","cc"
-        );
+              [blocks] "r" (blocks),
+            : .{ .rcx = true, .rdi = true, .xmm0 = true, .memory = true, .cc = true });
     }
 
     screeny -= offset + 1;

@@ -17,9 +17,7 @@ pub const Date = struct {
     year: u32,
 
     pub fn format(s: *const @This(), comptime _: []const u8, _: std.fmt.FormatOptions, fmt: anytype) !void {
-        fmt.write("{:0>4}-{:0>2}-{:0>2}", .{
-            s.year, s.month, s.day
-        });
+        fmt.write("{:0>4}-{:0>2}-{:0>2}", .{ s.year, s.month, s.day });
     }
 };
 
@@ -51,19 +49,11 @@ pub const DateTime = struct {
     hours: u8,
 
     pub fn get_date(s: @This()) Date {
-        return .{
-            .day = s.day,
-            .month = s.month,
-            .year = s.year
-        };
+        return .{ .day = s.day, .month = s.month, .year = s.year };
     }
 
     pub fn get_time(s: @This()) Time {
-        return .{
-            .seconds = s.seconds,
-            .minutes = s.minutes,
-            .hours = s.hours
-        };
+        return .{ .seconds = s.seconds, .minutes = s.minutes, .hours = s.hours };
     }
 
     pub fn from_timestamp(ts: u64) DateTime {
@@ -104,10 +94,7 @@ pub const DateTime = struct {
             year += 1;
         }
 
-        const days_in_month = [_]u8{
-            31, if (isLeapYear(year)) 29 else 28, 31, 30, 31, 30,
-            31, 31, 30, 31, 30, 31
-        };
+        const days_in_month = [_]u8{ 31, if (isLeapYear(year)) 29 else 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 };
 
         var month: u8 = 1;
         for (days_in_month, 0..) |dim, i| {
@@ -126,22 +113,24 @@ pub const DateTime = struct {
         return (year % 4 == 0 and year % 100 != 0) or (year % 400 == 0);
     }
 
-
-    pub fn format(s: *const @This(), comptime _: []const u8, _: std.fmt.FormatOptions, fmt: anytype) !void {
+    pub fn format(s: *const @This(), fmt: anytype) !void {
         try fmt.print("{:0>2}:{:0>2}:{:0>2} {:0>4}-{:0>2}-{:0>2}", .{
-            s.hours, s.minutes, s.seconds,
-            s.year, s.month, s.day
+            s.hours,
+            s.minutes,
+            s.seconds,
+            s.year,
+            s.month,
+            s.day,
         });
     }
 };
 
-
 const internal = switch (sys.arch) {
     .x86_64 => @import("x86_64/time.zig"),
-    else => unreachable
+    else => unreachable,
 };
 
-var elapsed_ticks: usize = 0; 
+var elapsed_ticks: usize = 0;
 
 // Secconds elapsed since january 1st, 1970
 pub const timestamp: fn () u64 = internal.timestamp;
@@ -155,7 +144,9 @@ pub const get_datetime: fn () DateTime = internal.get_datetime;
 /// The elapsed ticks since the start of the
 /// timer. Elapsed ticks should be in milisseconds,
 /// but not trully guaranteed
-pub fn get_elapsed_ticks() usize { return elapsed_ticks; }
+pub fn get_elapsed_ticks() usize {
+    return elapsed_ticks;
+}
 
 pub fn init() void {
     log.debug(" ## Setting up time service...", .{});
@@ -166,14 +157,12 @@ pub fn init() void {
 
 /// Handles the timer interrupt
 fn timer_int(f: *sys.TaskContext) void {
-
     elapsed_ticks += 1;
-    
+
     // Check if timer conditions are reached
     // and execute
 
     // Scheduling tasks each 3 ticks (around 3 ms)
     if (elapsed_ticks % 3 == 0)
         root.threading.scheduler.do_schedule(f);
-
 }

@@ -15,14 +15,17 @@ pub const TaskContext = extern struct {
         // FPU control registers
         fcw: u16,
         fsw: u16,
-        ftw: u8,  _rsvd_0: u8,
+        ftw: u8,
+        _rsvd_0: u8,
         fop: u16,
 
         // FPU instruction and data pointers
-        fip:    u32,
-        fcs: u16, _rsvd_1: u16,
+        fip: u32,
+        fcs: u16,
+        _rsvd_1: u16,
         fdp: u32,
-        fds: u16, _rsvd_2: u16,
+        fds: u16,
+        _rsvd_2: u16,
 
         mxcsr: u32,
         mxcsr_mask: u32,
@@ -134,28 +137,22 @@ pub const TaskContext = extern struct {
         };
     }
     pub fn set_privilege(s: *@This(), p: root.system.Privilege) void {
-
         if (p == .kernel) {
-
             s.cs = gdt.selector.code64;
             s.ss = gdt.selector.data64;
             s.es = gdt.selector.data64;
             s.ds = gdt.selector.data64;
-
         } else if (p == .user) {
-
             s.cs = gdt.selector.usercode64;
             s.ss = gdt.selector.userdata64;
             s.es = gdt.selector.userdata64;
             s.ds = gdt.selector.userdata64;
-
         } else {
             @panic("Invalid privilege level");
         }
     }
 
-
-    pub fn format(self: *const @This(), comptime _: []const u8, _: std.fmt.FormatOptions, fmt: anytype) !void {
+    pub fn format(self: *const @This(), fmt: anytype) !void {
 
         // General purpose registers
         try fmt.print("RAX={x:0>16} RBX={x:0>16} RCX={x:0>16} RDX={x:0>16}\n", .{ self.rax, self.rbx, self.rcx, self.rdx });
@@ -181,22 +178,21 @@ pub const TaskContext = extern struct {
         try fmt.print("XMM14={x:0>32} XMM15={x:0>32}\n", .{ self.simd.xmm[14], self.simd.xmm[15] });
 
         // rip, flags, privilege level
-        try fmt.print("rip={x:0>16} ", .{ self.rip });
+        try fmt.print("rip={x:0>16} ", .{self.rip});
         try fmt.print("FLG={X:7} [{c}{c}{c}{c}{c}{c}{c}{c}] CPL={} INT={X:0>8} ERR={X:0>16}\n", .{
             @as(u64, @bitCast(self.eflags)) & 0xffffffff,
-
-            @as(u8, if (self.eflags.overflow) 'O' else '-'),   // OF: Overflow Flag
-            @as(u8, if (self.eflags.interrupt) 'I' else '-'),  // IF: Interrupt Flag
-            @as(u8, if (self.eflags.trap) 'T' else '-'),       // TF: Trap Flag
-            @as(u8, if (self.eflags.sign) 'S' else '-'),       // SF: Sign Flag
-            @as(u8, if (self.eflags.zero) 'Z' else '-'),       // ZF: Zero Flag
-            @as(u8, if (self.eflags.auxiliary) 'A' else '-'),  // AF: Auxiliary Carry
-            @as(u8, if (self.eflags.parity) 'P' else '-'),     // PF: Parity Flag
-            @as(u8, if (self.eflags.carry) 'C' else '-'),      // CF: Carry Flag
+            @as(u8, if (self.eflags.overflow) 'O' else '-'), // OF: Overflow Flag
+            @as(u8, if (self.eflags.interrupt) 'I' else '-'), // IF: Interrupt Flag
+            @as(u8, if (self.eflags.trap) 'T' else '-'), // TF: Trap Flag
+            @as(u8, if (self.eflags.sign) 'S' else '-'), // SF: Sign Flag
+            @as(u8, if (self.eflags.zero) 'Z' else '-'), // ZF: Zero Flag
+            @as(u8, if (self.eflags.auxiliary) 'A' else '-'), // AF: Auxiliary Carry
+            @as(u8, if (self.eflags.parity) 'P' else '-'), // PF: Parity Flag
+            @as(u8, if (self.eflags.carry) 'C' else '-'), // CF: Carry Flag
 
             self.cs & 0b11,
             self.intnum,
-            self.error_code
+            self.error_code,
         });
 
         // Segment selectors
@@ -204,15 +200,13 @@ pub const TaskContext = extern struct {
         try write_segment(fmt, "CS", self.cs);
         try write_segment(fmt, "SS", self.ss);
         try write_segment(fmt, "DS", self.ds);
-        
+
         try fmt.print("GDT=     {X:0>16} {X:0>8}\n", .{ gdt.get_ptr().base, gdt.get_ptr().limit });
         try fmt.print("IDT=     {X:0>16} {X:0>8}\n", .{ idt.get_ptr().base, idt.get_ptr().limit });
 
-        try fmt.print("CR2={x:0>16}\n", .{ self.cr2 });
-
+        try fmt.print("CR2={x:0>16}\n", .{self.cr2});
     }
     fn write_segment(writer: anytype, reg: *const [2:0]u8, selector: usize) !void {
-
         const index = selector >> 3;
         const entry = gdt.tables[index];
 
@@ -223,10 +217,7 @@ pub const TaskContext = extern struct {
             (@as(u32, @intCast(entry.base_high)) << 16) | (@as(u32, @intCast(entry.base_middle)) << 8) | @as(u32, @intCast(entry.base_low)),
             (@as(u32, @intCast(entry.limit_high)) << 16) | @as(u32, @intCast(entry.limit_low)),
 
-            (@as(u32, @intCast(@as(u8, @bitCast(entry.access)))) << 24)
-                | (@as(u32, @intCast(@as(u4, @bitCast(entry.flags)))) << 20)
-                | (@as(u32, @intCast(@as(u4, @truncate(entry.limit_high)))) << 16)
-                | (@as(u32, @intCast(@as(u4, @truncate(entry.base_high)))) << 8),
+            (@as(u32, @intCast(@as(u8, @bitCast(entry.access)))) << 24) | (@as(u32, @intCast(@as(u4, @bitCast(entry.flags)))) << 20) | (@as(u32, @intCast(@as(u4, @truncate(entry.limit_high)))) << 16) | (@as(u32, @intCast(@as(u4, @truncate(entry.base_high)))) << 8),
 
             entry.access.privilege,
             ststr(@intFromEnum(entry.access.segment_type), @truncate(@as(u8, @bitCast(entry.access)) & 0x0f)),
@@ -235,7 +226,6 @@ pub const TaskContext = extern struct {
             @as(u8, if (entry.access.readable_writeable) 'W' else 'R'),
             @as(u8, if (entry.access.acessed) 'A' else '-'),
         });
-
     }
     /// Descriptor Type String
     fn ststr(s: u1, typ: u4) []const u8 {
@@ -256,8 +246,7 @@ pub const TaskContext = extern struct {
             0xD => "CXCAcc",
             0xE => "CXRCnf",
             0xF => "CXRAcC",
-        }
-        else return switch (typ) {
+        } else return switch (typ) {
             0x1 => "TSSAv16",
             0x2 => "LDT",
             0x3 => "TSSBs16",
@@ -276,31 +265,26 @@ pub const TaskContext = extern struct {
 };
 
 const Flags = packed struct(u64) {
-    carry: bool,                        // Bit 0: CF - Carry Flag
-    reserved_1: u1,                     // Bit 1: Reserved (always 1 in EFLAGS), ignored in RFLAGS
-    parity: bool,                       // Bit 2: PF - Parity Flag
-    reserved_3: u1,                     // Bit 3: Reserved
-    auxiliary: bool,                    // Bit 4: AF - Auxiliary Carry Flag
-    reserved_5: u1,                     // Bit 5: Reserved
-    zero: bool,                         // Bit 6: ZF - Zero Flag
-    sign: bool,                         // Bit 7: SF - Sign Flag
-    trap: bool,                         // Bit 8: TF - Trap Flag
-    interrupt: bool,                    // Bit 9: IF - Interrupt Enable Flag
-    direction: bool,                    // Bit 10: DF - Direction Flag
-    overflow: bool,                     // Bit 11: OF - Overflow Flag
-    io_privilege: u2,                   // Bits 12–13: IOPL - I/O Privilege Level
-    nested_task: bool,                  // Bit 14: NT - Nested Task
-    reserved_15: u1,                    // Bit 15: Reserved (was RF in EFLAGS, now in DR6)
-    @"resume": bool,                    // Bit 16: RF - Resume Flag
-    virtual_8086: bool,                 // Bit 17: VM - Virtual 8086 Mode
-    alignment_check: bool,              // Bit 18: AC - Alignment Check
-    virtual_interrupt: bool,            // Bit 19: VIF - Virtual Interrupt Flag
-    virtual_interrupt_pending: bool,    // Bit 20: VIP - Virtual Interrupt Pending
-    id: bool,                           // Bit 21: ID - ID Flag (CPUID enable)
-    reserved_high: u42,                 // Bits 22–63: Reserved
+    carry: bool, // Bit 0: CF - Carry Flag
+    reserved_1: u1, // Bit 1: Reserved (always 1 in EFLAGS), ignored in RFLAGS
+    parity: bool, // Bit 2: PF - Parity Flag
+    reserved_3: u1, // Bit 3: Reserved
+    auxiliary: bool, // Bit 4: AF - Auxiliary Carry Flag
+    reserved_5: u1, // Bit 5: Reserved
+    zero: bool, // Bit 6: ZF - Zero Flag
+    sign: bool, // Bit 7: SF - Sign Flag
+    trap: bool, // Bit 8: TF - Trap Flag
+    interrupt: bool, // Bit 9: IF - Interrupt Enable Flag
+    direction: bool, // Bit 10: DF - Direction Flag
+    overflow: bool, // Bit 11: OF - Overflow Flag
+    io_privilege: u2, // Bits 12–13: IOPL - I/O Privilege Level
+    nested_task: bool, // Bit 14: NT - Nested Task
+    reserved_15: u1, // Bit 15: Reserved (was RF in EFLAGS, now in DR6)
+    @"resume": bool, // Bit 16: RF - Resume Flag
+    virtual_8086: bool, // Bit 17: VM - Virtual 8086 Mode
+    alignment_check: bool, // Bit 18: AC - Alignment Check
+    virtual_interrupt: bool, // Bit 19: VIF - Virtual Interrupt Flag
+    virtual_interrupt_pending: bool, // Bit 20: VIP - Virtual Interrupt Pending
+    id: bool, // Bit 21: ID - ID Flag (CPUID enable)
+    reserved_high: u42, // Bits 22–63: Reserved
 };
-
-
-
-
-
