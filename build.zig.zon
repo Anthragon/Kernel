@@ -1,6 +1,7 @@
 .{
     .name = .galvan_core,
     .version = "0.0.0",
+    .fingerprint = 0x13909c8c16a849a2,
 
     .dependencies = .{
         .lumiPCI = .{ .path = "../modules/lumiPCI" },
@@ -16,6 +17,6 @@
         "build.zig",
         "build.zig.zon",
 
-        "LICENSE"
-        },
+        "LICENSE",
+    },
 }
