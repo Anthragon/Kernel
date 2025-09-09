@@ -205,6 +205,7 @@ pub fn setup() void {
 }
 
 pub fn lsmemblocks() void {
+    log.warn("lsmemblocks", .{});
     log.info("\nPhysical Memory Blocks:", .{});
 
     var free_pages: usize = 0;

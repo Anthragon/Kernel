@@ -3,6 +3,7 @@ const root = @import("root");
 const lib = @import("lib");
 const threading = root.threading;
 const modules = root.modules;
+const KernelError = root.interop.KernelError;
 
 const debug = root.debug;
 const log = std.log.scoped(.adam);
@@ -26,7 +27,11 @@ pub fn _start(args: ?*anyopaque) callconv(.c) noreturn {
 
     log.info("\nHello, Adam!", .{});
 
-    // Running the build-in core drivers
+    // # Running the built-in core modules
+    // these modules are compiled inside the kernel binary and
+    // must initialize first to make sure the kernel has the
+    // necessary capabilities and resources to run in the
+    // current environment.
 
     inline for (builtin_modules) |mod| {
         _ = modules.register_module(
@@ -61,6 +66,13 @@ pub fn _start(args: ?*anyopaque) callconv(.c) noreturn {
         log.info("Initialization done; Module {s} status: {s}", .{ module.name, @tagName(module.status) });
     }
 
+    // # Mounting the boot partition as rootfs
+    // the boot partition is used as rootfs if no other
+    // partition is configurated so. It must include the
+    // 'setup.toml' file that contains the fs table. if
+    // not, the boot partition will continue being used as
+    // root.
+
     log.info("Mounting boot partition as root file system:", .{});
     switch (boot_info.boot_device) {
         .mbr => |_| @panic("Not implemented!"),
@@ -81,40 +93,61 @@ pub fn _start(args: ?*anyopaque) callconv(.c) noreturn {
         //else => unreachable,
     }
 
-    const setup_query = root.fs.get_node("setup.toml");
-    if (!setup_query.isok()) std.debug.panic("bruh {s}", .{@tagName(setup_query.@"error")});
-    const setup_file: *lib.common.FsNode = setup_query.unwrap().?;
+    // load configuration in setup.toml
+    const setup_toml_file: ?lib.common.FsNode = root.fs.get_node("setup.toml").asbuiltin() catch |err| switch (err) {
+        KernelError.NotFound => null,
+        else => std.debug.panic("Error trying to read `setup.toml` file: {s}", .{@errorName(err)}),
+    };
+    if (setup_toml_file) |setup_toml| {
+        const file_content = setup_toml.readAll(allocator) catch unreachable;
+        defer allocator.free(file_content);
+        setup_toml.close();
 
-    const file_content = setup_file.readAll(allocator) catch unreachable;
-    defer allocator.free(file_content);
-    var toml = lib.Toml.parseToml(allocator, file_content) catch unreachable;
-    defer toml.deinit();
+        var toml = lib.Toml.parseToml(allocator, file_content) catch unreachable;
+        defer toml.deinit();
 
-    const fstab_nullable = toml.content.get("mount");
-    if (fstab_nullable) |fstab| {
-        if (fstab != .Array) std.debug.panic("{s}: Expected `mount` to be Array, found {s}", .{
-            setup_file.name,
-            @tagName(fstab),
-        });
+        const fstab_nullable = toml.content.get("mount");
+        if (fstab_nullable) |fstab| {
+            if (fstab != .Array) std.debug.panic("{s}: Expected `mount` to be Array, found {s}", .{
+                setup_toml.name,
+                @tagName(fstab),
+            });
 
-        for (fstab.Array) |i| {
-            if (i != .Table) std.debug.panic("{s}: Expected table contents to be '{{ disk: String, part: String, path: String }}', found {s}", .{ setup_file.name, @tagName(i) });
-            if (!i.Table.contains("disk") or i.Table.get("disk").? != .String or !i.Table.contains("part") or i.Table.get("part").? != .String or !i.Table.contains("path") or i.Table.get("path").? != .String)
-                std.debug.panic("{s}: Expected table contents to be '{{ disk: String, part: String, path: String }}', found Invalid Table", .{setup_file.name});
+            for (fstab.Array) |i| {
+                if (i != .Table) std.debug.panic("{s}: Expected table contents to be '{{ disk: String, part: String, path: String }}', found {s}", .{ setup_toml.name, @tagName(i) });
+                if (!i.Table.contains("disk") or i.Table.get("disk").? != .String or !i.Table.contains("part") or i.Table.get("part").? != .String or !i.Table.contains("path") or i.Table.get("path").? != .String)
+                    std.debug.panic("{s}: Expected table contents to be '{{ disk: String, part: String, path: String }}', found Invalid Table", .{setup_toml.name});
 
-            const entry_disk: [:0]const u8 = std.mem.sliceTo(i.Table.get("disk").?.String, 0);
-            const entry_part: [:0]const u8 = std.mem.sliceTo(i.Table.get("part").?.String, 0);
-            const entry_path: [:0]const u8 = std.mem.sliceTo(i.Table.get("path").?.String, 0);
+                const entry_disk: [:0]const u8 = std.mem.sliceTo(i.Table.get("disk").?.String, 0);
+                const entry_part: [:0]const u8 = std.mem.sliceTo(i.Table.get("part").?.String, 0);
+                const entry_path: [:0]const u8 = std.mem.sliceTo(i.Table.get("path").?.String, 0);
 
-            const entry_node = root.fs.mount_disk_by_identifier_part_by_identifier(
-                entry_disk,
-                entry_part,
-            );
+                const entry_node = root.fs.mount_disk_by_identifier_part_by_identifier(
+                    entry_disk,
+                    entry_part,
+                );
 
-            if (std.mem.eql(u8, entry_path, "/")) {
-                root.fs.chroot(entry_node);
-            } else _ = root.fs.set_mount_point(entry_node, entry_path.ptr);
+                if (std.mem.eql(u8, entry_path, "/")) {
+                    root.fs.chroot(entry_node);
+                } else _ = root.fs.set_mount_point(entry_node, entry_path.ptr);
+            }
         }
+    }
+
+    // load configuration in users.toml
+    const users_toml_file: ?lib.common.FsNode = root.fs.get_node("sys/users.toml").asbuiltin() catch |err| switch (err) {
+        KernelError.NotFound => null,
+        else => std.debug.panic("Error trying to read `setup.toml` file: {s}", .{@errorName(err)}),
+    };
+    if (users_toml_file) |users_toml| {
+        const file_content = users_toml.readAll(allocator) catch unreachable;
+        defer allocator.free(file_content);
+        users_toml.close();
+
+        var toml = lib.Toml.parseToml(allocator, file_content) catch unreachable;
+        defer toml.deinit();
+
+        root.auth.load_users_config("sys/users.toml", toml);
     }
 
     _random_infodump();
@@ -143,6 +176,8 @@ fn _random_infodump() void {
     lspci();
     //log.info("", .{});
     //root.capabilities.lscaps();
+    log.info("", .{});
+    root.auth.lsusers();
     log.info("", .{});
     root.fs.lsroot();
 }

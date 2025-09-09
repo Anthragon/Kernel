@@ -20,6 +20,7 @@ pub fn init() void {
 }
 
 pub fn lsmodules() void {
+    log.warn("lsmodules", .{});
     log.info("Listing active modules:", .{});
     for (modules_map.values()) |i| {
         log.info("{f} - {s} {s} by {s} ({s} liscence) - {s}", .{ i.uuid, i.name, i.version, i.author, i.license, @tagName(i.status) });

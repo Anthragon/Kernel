@@ -66,6 +66,7 @@ pub fn get_process_from_pid(pid: usize) ?*Process {
 }
 
 pub fn lsproc() void {
+    log.warn("lsproc", .{});
     log.info("Listing processes:", .{});
 
     for (proc_list) |proc| {
@@ -79,6 +80,7 @@ pub fn lsproc() void {
     }
 }
 pub fn lstasks() void {
+    log.warn("lstasks", .{});
     log.info("Listing tasks:", .{});
 
     for (proc_list) |proc| {

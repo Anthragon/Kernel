@@ -14,6 +14,7 @@ pub const FsNode = lib.common.FsNode;
 
 pub const default_nodes = @import("default_nodes.zig");
 pub const Result = interop.Result;
+pub const KernelError = interop.KernelError;
 
 var arena: std.heap.ArenaAllocator = undefined;
 var allocator: std.mem.Allocator = undefined;
@@ -50,13 +51,13 @@ pub inline fn get_fs_allocator() std.mem.Allocator {
     return allocator;
 }
 
-pub fn chroot(newroot: *FsNode) callconv(.c) void {
+pub fn chroot(newroot: FsNode) callconv(.c) void {
     fsroot.chroot(newroot);
 }
-pub fn get_root() callconv(.c) *FsNode {
-    return &fsroot.root_wrapper;
+pub fn get_root() callconv(.c) FsNode {
+    return fsroot.get_node();
 }
-pub fn get_node(path: [*:0]const u8) callconv(.c) Result(*FsNode) {
+pub fn get_node(path: [*:0]const u8) callconv(.c) Result(FsNode) {
     return get_root().branch(path);
 }
 
@@ -81,7 +82,7 @@ fn remove_file_system(name: ?[*:0]const u8) callconv(.c) void {
 pub fn mount_disk(disk: *anyopaque) void {
     _ = disk;
 }
-pub fn mount_part(part: *PartEntry) *FsNode {
+pub fn mount_part(part: *PartEntry) FsNode {
     log.debug("Mounting partition...", .{});
 
     const fs = get_partition_fs(part) orelse @panic("No compatible file system found!");
@@ -89,7 +90,7 @@ pub fn mount_part(part: *PartEntry) *FsNode {
     part.file_system = fs;
     return fs.vtable.mount(part);
 }
-pub fn mount_disk_by_identifier_part_by_identifier(disk: [*:0]const u8, part: [*:0]const u8) callconv(.c) *FsNode {
+pub fn mount_disk_by_identifier_part_by_identifier(disk: [*:0]const u8, part: [*:0]const u8) callconv(.c) FsNode {
     log.debug("mount requested - {s} : {s}", .{ disk, part });
 
     const getdbipbi: *const fn ([*:0]const u8, [*:0]const u8) callconv(.c) ?*lib.common.PartEntry =
@@ -109,25 +110,25 @@ fn get_partition_fs(part: *PartEntry) ?*FileSystemEntry {
     return null;
 }
 
-pub fn set_mount_point(node: *FsNode, path: [*:0]const u8) Result(void) {
-    
-    const path_slice = std.mem.sliceTo(path, 0);
-    const path_separator = std.mem.lastIndexOfLinear(u8, path_slice, "/") orelse std.debug.panic("Invalid Mount point '{s}'", .{path});
-    const dir_path = allocator.dupeZ(u8, path_slice[0..path_separator]) catch root.oom_panic();
+pub fn set_mount_point(node: FsNode, path: [*:0]const u8) Result(void) {
+    return .frombuiltin(set_mount_point_internal(node, std.mem.sliceTo(path, 0)));
+}
+pub fn set_mount_point_internal(node: FsNode, path: []const u8) KernelError!void {
+    const path_separator = std.mem.lastIndexOfLinear(u8, path, "/") orelse return KernelError.InvalidPath;
+    const dir_path = allocator.dupeZ(u8, path[0..path_separator]) catch root.oom_panic();
     defer allocator.free(dir_path);
-    const node_name = allocator.dupeZ(u8, path_slice[path_separator + 1 ..]) catch root.oom_panic();
+    const node_name = allocator.dupeZ(u8, path[path_separator + 1 ..]) catch root.oom_panic();
     defer allocator.free(node_name);
 
-    const parent_node: Result(*FsNode) = get_node(dir_path);
-    if (!parent_node.isok()) return .err(parent_node.@"error");
+    const parent_node: FsNode = try get_node(dir_path).asbuiltin();
     const mountpoint = default_nodes.MountPoint.init(node_name, node);
 
-    _ = parent_node.unwrap().?.append(&mountpoint.node);
-    return .retvoid();
+    _ = parent_node.append(mountpoint.get_node());
 }
 
 /// Dumps the content of the `node` directory
-pub fn lsdir(node: *FsNode) callconv(.c) void {
+pub fn lsdir(node: FsNode) callconv(.c) void {
+    log.warn("lsdir", .{});
     var iterator = node.get_iterator().value;
     while (iterator.next()) |n| {
         log.info("{s: <15} {s}", .{ n.name, n.type });
@@ -135,6 +136,8 @@ pub fn lsdir(node: *FsNode) callconv(.c) void {
 }
 /// Dumps all the file system
 pub fn lsroot() callconv(.c) void {
+    log.warn("lsroot", .{});
+
     var buffer: std.ArrayList(u8) = .empty;
     defer buffer.deinit(allocator);
     const writer = buffer.writer(allocator);
@@ -156,13 +159,19 @@ pub fn lsroot() callconv(.c) void {
         var last = &stack.items[stack.items.len - 1];
 
         if (last.iter.next()) |node| {
-            for (0..last.level) |_| writer.writeAll("  ") catch unreachable;
+            writer.writeBytesNTimes("  ", last.level) catch unreachable;
 
-            if (node.iterable) {
+            if (node.flags.iterable) {
                 const name = std.mem.sliceTo(node.name, 0);
                 writer.print("{s}/", .{name}) catch unreachable;
-                for (name.len..19) |_| writer.writeByte(' ') catch unreachable;
+                writer.writeByteNTimes(' ', 19 - name.len) catch unreachable;
                 writer.print(" {s}", .{node.type}) catch unreachable;
+
+                const iter = node.get_iterator().asbuiltin() catch |err| @panic(@errorName(err));
+                stack.append(allocator, .{
+                    .iter = iter,
+                    .level = last.level + 1,
+                }) catch root.oom_panic();
             } else {
                 writer.print("{s: <20} {s: <25}", .{ node.name, node.type }) catch unreachable;
 
@@ -176,19 +185,11 @@ pub fn lsroot() callconv(.c) void {
                 } else writer.print("Unk", .{}) catch unreachable;
             }
 
-            if (node.iterable) {
-                const iter = node.get_iterator();
-
-                if (iter.unwrap()) |v| {
-                    stack.append(allocator, .{
-                        .iter = v,
-                        .level = last.level + 1,
-                    }) catch root.oom_panic();
-                }
-            }
-
             writer.writeByte('\n') catch unreachable;
-        } else _ = stack.pop();
+        } else {
+            var i = stack.pop().?;
+            i.iter.deinit();
+        }
     }
 
     log.info("{s}", .{buffer.items});

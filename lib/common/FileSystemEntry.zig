@@ -7,6 +7,6 @@ pub const FileSystemEntry = extern struct {
 
     pub const VTable = extern struct {
         scan:  *const fn (part: *root.common.PartEntry) callconv(.c) bool,
-        mount: *const fn (part: *root.common.PartEntry) callconv(.c) *root.common.FsNode,
+        mount: *const fn (part: *root.common.PartEntry) callconv(.c) root.common.FsNode,
     };
 };

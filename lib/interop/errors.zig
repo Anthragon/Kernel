@@ -1,5 +1,4 @@
-pub const Error = enum(usize) {
-
+pub const KernelErrorEnum = enum(usize) {
     noerror = 0,
 
     // Misc
@@ -22,33 +21,78 @@ pub const Error = enum(usize) {
 
     // FS error
     cannotRead,
+    cannotWrite,
     invalidPath,
     nodeIsFile,
     nodeIsDirectory,
-
 };
 
-pub fn errorToZigError(err: Error) anyerror {
+pub const KernelError = error{
+    Unexpected,
+    NotImplemented,
+    NullContext,
+    NullArgument,
+
+    NotFound,
+
+    NotIterable,
+    OutOfBounds,
+
+    NameAlreadyUsed,
+    NameNotFound,
+    InvalidName,
+
+    CannotRead,
+    CannotWrite,
+    InvalidPath,
+    NodeIsFile,
+    NodeIsDirectory,
+};
+
+pub fn errorFromEnum(err: KernelErrorEnum) KernelError {
     return switch (err) {
-        .unexpected => error.unexpected,
-        .notImplemented => error.notImplemented,
-        .nullContext => error.nullContext,
-        .nullArgument => error.nullArgument,
+        .noerror => unreachable,
+        .unexpected => KernelError.Unexpected,
+        .notImplemented => KernelError.NotImplemented,
+        .nullContext => KernelError.NullContext,
+        .nullArgument => KernelError.NullArgument,
 
-        .notFound => error.notFound,
+        .notFound => KernelError.NotFound,
 
-        .notIterable => error.notIterable,
-        .outOfBounds => error.outOfBounds,
+        .notIterable => KernelError.NotIterable,
+        .outOfBounds => KernelError.OutOfBounds,
 
-        .nameAlreadyUsed => error.nameAlreadyUsed,
-        .nameNotFound => error.nameNotFound,
-        .invalidName => error.invalidName,
+        .nameAlreadyUsed => KernelError.NameAlreadyUsed,
+        .nameNotFound => KernelError.NameNotFound,
+        .invalidName => KernelError.InvalidName,
 
-        .cannotRead => error.cannotRead,
-        .invalidPath => error.invalidPath,
-        .nodeIsFile => error.nodeIsFile,
-        .nodeIsDirectory => error.nodeIsDirectory,
+        .cannotRead => KernelError.CannotRead,
+        .cannotWrite => KernelError.CannotWrite,
+        .invalidPath => KernelError.InvalidPath,
+        .nodeIsFile => KernelError.NodeIsFile,
+        .nodeIsDirectory => KernelError.NodeIsDirectory,
+    };
+}
+pub fn enumFromError(err: KernelError) KernelErrorEnum {
+    return switch (err) {
+        KernelError.Unexpected => .unexpected,
+        KernelError.NotImplemented => .notImplemented,
+        KernelError.NullContext => .nullContext,
+        KernelError.NullArgument => .nullArgument,
 
-        else => error.unregistredError
+        KernelError.NotFound => .notFound,
+
+        KernelError.NotIterable => .notIterable,
+        KernelError.OutOfBounds => .outOfBounds,
+
+        KernelError.NameAlreadyUsed => .nameAlreadyUsed,
+        KernelError.NameNotFound => .nameNotFound,
+        KernelError.InvalidName => .invalidName,
+
+        KernelError.CannotRead => .cannotRead,
+        KernelError.CannotWrite => .cannotWrite,
+        KernelError.InvalidPath => .invalidPath,
+        KernelError.NodeIsFile => .nodeIsFile,
+        KernelError.NodeIsDirectory => .nodeIsDirectory,
     };
 }

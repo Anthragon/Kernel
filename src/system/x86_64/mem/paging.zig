@@ -76,6 +76,7 @@ pub fn create_new_map() MapPtr {
 
 // Debug prints the selected memory map (lots of logs)
 pub fn lsmemmap() void {
+    log.warn("lsmemmap", .{});
     log.info("lsmemmap ({X}):", .{pmm.physFromPtr(current_map.?)});
 
     for (current_map.?, 0..) |*cmap, i| if (cmap.present) {

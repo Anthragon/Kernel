@@ -48,6 +48,7 @@ pub fn init() void {
 }
 
 pub fn lscaps() void {
+    log.warn("lscaps", .{});
     var buf: std.ArrayList(u8) = .init(allocator);
     defer buf.deinit();
 

@@ -1,12 +1,15 @@
 const std = @import("std");
 const root = @import("root");
 
-pub const Error = @import("errors.zig").Error;
-pub const errorToZigError = @import("errors.zig").errorToZigError;
+const err = @import("errors.zig");
+pub const KernelErrorEnum = err.KernelErrorEnum;
+pub const KernelError = err.KernelError;
+pub const errorFromEnum = err.errorFromEnum;
+pub const enumFromError = err.enumFromError;
 
 pub fn Result(T: type) type {
     return extern struct {
-        @"error": Error,
+        @"error": KernelErrorEnum,
         value: T,
 
         pub fn val(v: T) Result(T) {
@@ -21,21 +24,24 @@ pub fn Result(T: type) type {
                 .value = undefined,
             };
         }
-        pub fn err(e: Error) Result(T) {
+        pub fn err(e: KernelErrorEnum) Result(T) {
             return .{
                 .@"error" = e,
                 .value = undefined,
             };
         }
 
-        pub fn unwrap(s: *const @This()) ?T {
+        pub fn unwrap(s: @This()) ?T {
             return if (s.@"error" == .noerror) s.value else null;
         }
-        pub fn isok(s: *const @This()) bool {
+        pub fn isok(s: @This()) bool {
             return s.@"error" == .noerror;
         }
-        pub fn getZigErr(s: *const @This()) anyerror {
-            return errorToZigError(s.@"error");
+        pub fn asbuiltin(s: @This()) KernelError!T {
+            return if (s.isok()) s.value else errorFromEnum(s.@"error");
+        }
+        pub fn frombuiltin(s: KernelError!T) Result(T) {
+            return .val(s catch |e| return .err(enumFromError(e)));
         }
     };
 }

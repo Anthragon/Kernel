@@ -28,6 +28,32 @@ pub fn parseToml(allocator: std.mem.Allocator, toml: []const u8) !@This() {
         const trimmed = std.mem.trim(u8, line, " \t");
         if (trimmed.len == 0 or trimmed[0] == '#') continue;
 
+        // Table array: [[table]]
+        if (trimmed.len > 4 and trimmed[0] == '[' and trimmed[1] == '[' and trimmed[trimmed.len - 2] == ']' and trimmed[trimmed.len - 1] == ']') {
+            const tablename = std.mem.trim(u8, trimmed[2 .. trimmed.len - 2], " \t");
+
+            const entry = root.getOrPut(allocator, tablename) catch return error.OutOfMemory;
+            if (!entry.found_existing) {
+                var arr = std.ArrayList(Value).empty;
+                entry.value_ptr.* = Value{ .Array = try arr.toOwnedSlice(allocator) };
+            }
+
+            var arr_val = entry.value_ptr.*;
+            if (arr_val != .Array) return error.InvalidToml;
+
+            var arr = std.ArrayList(Value).fromOwnedSlice(arr_val.Array);
+
+            const new_table = std.StringHashMapUnmanaged(Value).empty;
+            try arr.append(allocator, Value{ .Table = new_table });
+
+            arr_val = Value{ .Array = try arr.toOwnedSlice(allocator) };
+
+            const last_idx = arr_val.Array.len - 1;
+            current_table = &arr_val.Array[last_idx].Table;
+
+            continue;
+        }
+
         // Table header: [table]
         if (trimmed[0] == '[' and trimmed[trimmed.len - 1] == ']') {
             const tablename = trimmed[1 .. trimmed.len - 1];

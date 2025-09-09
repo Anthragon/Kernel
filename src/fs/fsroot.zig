@@ -13,16 +13,23 @@ const default_nodes = @import("default_nodes.zig");
 const Result = interop.Result;
 
 var vfs_root: *default_nodes.VirtualDirectory = undefined;
-var pfs_root: ?*FsNode = null;
+var pfs_root: ?FsNode = null;
 
-pub var root_wrapper: FsNode = .{
-    .name = "Root",
-    .type = "Root",
-    .type_id = "root",
-    .iterable = true,
-    .physical = false,
-    .vtable = &vtable,
-};
+pub fn get_node() FsNode {
+    return .{
+        .context = undefined,
+        .name = "Root",
+        .type = "Root",
+        .type_id = "root",
+        .flags = .{
+            .iterable = true,
+            .physical = false,
+            .readable = false,
+            .writeable = false,
+        },
+        .vtable = &vtable,
+    };
+}
 
 pub fn init() void {
 
@@ -31,10 +38,10 @@ pub fn init() void {
 
     // Creating dev node
     var fs_dev = default_nodes.VirtualDirectory.init("dev");
-    _ = vfs_root.node.append(&fs_dev.node);
+    _ = append(undefined, fs_dev.get_node());
 }
 
-pub fn chroot(newroot: *FsNode) void {
+pub fn chroot(newroot: FsNode) void {
     pfs_root = newroot;
 }
 
@@ -48,6 +55,8 @@ fn initialize_virtual_root() void {
 }
 
 const vtable: FsNode.FsNodeVtable = .{
+    .open = open,
+    .close = close,
     .append_node = append,
     .get_child = getchild,
     .branch = branch,
@@ -55,17 +64,22 @@ const vtable: FsNode.FsNodeVtable = .{
 
 // Vtable functions after here
 
-fn append(_: *FsNode, node: *FsNode) callconv(.c) Result(void) {
-    _ = node;
-    // TODO see how to handle it somehow
-    @panic("TODO see how to handle it somehow");
+fn open(_: *anyopaque) callconv(.c) FsNode {
+    return get_node();
 }
-fn getchild(_: *FsNode, index: usize) callconv(.c) Result(*FsNode) {
+fn close(_: *anyopaque) callconv(.c) void {}
+fn append(_: *anyopaque, node: FsNode) callconv(.c) Result(void) {
+    if (node.flags.physical) {
+        // TODO see how to handle it somehow
+        @panic("TODO see how to handle it somehow");
+    } else return vfs_root.get_node().append(node);
+}
+fn getchild(_: *anyopaque, index: usize) callconv(.c) Result(FsNode) {
     const vfs_children = vfs_root.children.values();
 
     if (index < vfs_children.len) return .val(vfs_children[index]) else if (pfs_root) |r| return r.get_child(index - vfs_children.len) else return .err(.outOfBounds);
 }
-fn branch(_: *FsNode, path: [*:0]const u8) callconv(.c) Result(*FsNode) {
+fn branch(_: *anyopaque, path: [*:0]const u8) callconv(.c) Result(FsNode) {
     const pathslice = std.mem.sliceTo(path, 0);
 
     const i: usize = std.mem.indexOf(u8, pathslice, "/") orelse pathslice.len;
