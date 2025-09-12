@@ -1,14 +1,31 @@
 const std = @import("std");
 
 arena: std.heap.ArenaAllocator,
-content: std.StringHashMapUnmanaged(Value),
+content: std.StringArrayHashMapUnmanaged(Value),
 
 const Value = union(enum) {
     String: [*:0]const u8,
     Integer: i64,
     Boolean: bool,
     Array: []Value,
-    Table: std.StringHashMapUnmanaged(Value),
+    Table: std.StringArrayHashMapUnmanaged(Value),
+
+    pub fn format(s: @This(), fmt: *std.io.Writer) !void {
+        switch (s) {
+            .String => |str| fmt.print("'{s}'", .{std.mem.sliceTo(str, 0)}) catch unreachable,
+            .Integer => |int| fmt.writeInt(i64, int, .little) catch unreachable,
+            .Boolean => |bol| fmt.writeAll(if (bol) "true" else "false") catch unreachable,
+
+            .Array => |arr| {
+                _ = arr;
+                fmt.writeAll("<todo>") catch unreachable;
+            },
+            .Table => |tab| {
+                _ = tab;
+                fmt.writeAll("<todo>") catch unreachable;
+            },
+        }
+    }
 };
 
 pub fn deinit(s: *@This()) void {
@@ -20,8 +37,8 @@ pub fn parseToml(allocator: std.mem.Allocator, toml: []const u8) !@This() {
     const alloc = arena.allocator();
     errdefer arena.deinit();
 
-    var root = std.StringHashMapUnmanaged(Value).empty;
-    var current_table: *std.StringHashMapUnmanaged(Value) = &root;
+    var root = std.StringArrayHashMapUnmanaged(Value).empty;
+    var current_table: *std.StringArrayHashMapUnmanaged(Value) = &root;
     var lines = std.mem.tokenizeAny(u8, toml, "\r\n");
 
     while (lines.next()) |line| {
@@ -38,18 +55,18 @@ pub fn parseToml(allocator: std.mem.Allocator, toml: []const u8) !@This() {
                 entry.value_ptr.* = Value{ .Array = try arr.toOwnedSlice(allocator) };
             }
 
-            var arr_val = entry.value_ptr.*;
+            const arr_val = entry.value_ptr.*;
             if (arr_val != .Array) return error.InvalidToml;
 
             var arr = std.ArrayList(Value).fromOwnedSlice(arr_val.Array);
 
-            const new_table = std.StringHashMapUnmanaged(Value).empty;
+            const new_table = std.StringArrayHashMapUnmanaged(Value).empty;
             try arr.append(allocator, Value{ .Table = new_table });
 
-            arr_val = Value{ .Array = try arr.toOwnedSlice(allocator) };
+            entry.value_ptr.* = Value{ .Array = try arr.toOwnedSlice(allocator) };
 
-            const last_idx = arr_val.Array.len - 1;
-            current_table = &arr_val.Array[last_idx].Table;
+            const last_idx = entry.value_ptr.Array.len - 1;
+            current_table = &entry.value_ptr.Array[last_idx].Table;
 
             continue;
         }
@@ -57,7 +74,7 @@ pub fn parseToml(allocator: std.mem.Allocator, toml: []const u8) !@This() {
         // Table header: [table]
         if (trimmed[0] == '[' and trimmed[trimmed.len - 1] == ']') {
             const tablename = trimmed[1 .. trimmed.len - 1];
-            const new_table = std.StringHashMapUnmanaged(Value).empty;
+            const new_table = std.StringArrayHashMapUnmanaged(Value).empty;
             _ = try root.put(allocator, tablename, Value{ .Table = new_table });
             current_table = &root.getPtr(tablename).?.Table;
             continue;
@@ -118,7 +135,7 @@ fn parseTomlValue(allocator: std.mem.Allocator, value: []const u8) !Value {
 
     // Parse Inline Table
     if (value.len >= 2 and value[0] == '{' and value[value.len - 1] == '}') {
-        var table = std.StringHashMapUnmanaged(Value).empty;
+        var table = std.StringArrayHashMapUnmanaged(Value).empty;
         const inner = std.mem.trim(u8, value[1 .. value.len - 1], " \t");
 
         var it = std.mem.tokenizeScalar(u8, inner, ',');
@@ -174,4 +191,33 @@ fn splitTopLevelComma(gpa: std.mem.Allocator, s: []const u8) ![][]const u8 {
     }
 
     return try result.toOwnedSlice(gpa);
+}
+
+pub fn format(s: *const @This(), fmt: *std.io.Writer) !void {
+
+    // Check if array of tables
+    if (s.content.values().len == 1 and s.content.values()[0] == .Array) {
+        const key = s.content.keys()[0];
+        const arr: []Value = s.content.values()[0].Array;
+
+        const beg = fmt.end;
+        var failed = false;
+
+        for (arr) |item| {
+            if (item != .Table) {
+                fmt.undo(fmt.end - beg);
+                failed = true;
+                break;
+            }
+
+            fmt.print("[[{s}]]\n", .{key}) catch undefined;
+
+            var iter = item.Table.iterator();
+            while (iter.next()) |i| {
+                fmt.print("{s} = {f}\n", .{ i.key_ptr.*, i.value_ptr.* }) catch unreachable;
+            }
+
+            fmt.writeByte('\n') catch undefined;
+        }
+    }
 }

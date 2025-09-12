@@ -91,7 +91,7 @@ pub fn append_user(options: struct {
 }
 
 pub fn load_users_config(file_name: []const u8, config: Toml) void {
-    log.debug("parsing users from {s}", .{file_name});
+    log.debug("parsing users from {s}:\n{f}", .{ file_name, config });
 
     const table = config.content.get("user") orelse return;
     if (table != .Array) std.debug.panic("{s}: Expected ´user´ to be Array, found {s}", .{ file_name, @tagName(table) });
@@ -109,7 +109,7 @@ pub fn load_users_config(file_name: []const u8, config: Toml) void {
         const user_name = std.mem.sliceTo(user.Table.get("name").?.String, 0);
         const user_uuid = Guid.fromString(std.mem.sliceTo(user.Table.get("uuid").?.String, 0)) catch std.debug.panic("{s}: Invalig GUID format", .{file_name});
         const user_perm = std.mem.sliceTo(user.Table.get("perm").?.String, 0);
-        const user_pass = if (!user.Table.contains("pass")) std.mem.sliceTo(user.Table.get("pass").?.String, 0) else "";
+        const user_pass = if (user.Table.contains("pass")) std.mem.sliceTo(user.Table.get("pass").?.String, 0) else "";
 
         const user_is_adm = std.mem.containsAtLeastScalar(u8, user_perm, 1, 'A');
         const user_is_global = std.mem.containsAtLeastScalar(u8, user_perm, 1, 'G');
