@@ -11,12 +11,7 @@ const kernel_allocator = root.mem.heap.kernel_buddy_allocator;
 pub const Event = @import("event/event.zig").Event;
 pub const Node = nodes.Node;
 
-var capabilities_root: Node = .{
-    .guid = Guid.zero(),
-    .name = "root",
-    .parent = null,
-    .data = .{ .resource = .{ .children = .empty } }
-};
+var capabilities_root: Node = .{ .guid = Guid.zero(), .name = "root", .parent = null, .data = .{ .resource = .{ .children = .empty } } };
 var capabilities_all: std.AutoArrayHashMapUnmanaged(Guid, *Node) = .empty;
 
 var arena: std.heap.ArenaAllocator = undefined;
@@ -25,77 +20,84 @@ var allocator: std.mem.Allocator = undefined;
 const log = std.log.scoped(.capabilities);
 
 pub fn init() void {
-
     arena = .init(kernel_allocator);
     allocator = arena.allocator();
 
-    const kernel_node = create_resource(
+    const sys_node = create_resource(
         Guid.fromString("645fc46e-ec52-4f0b-a748-bee542baf1bf") catch unreachable,
-        null, "Kernel") catch unreachable;
+        null,
+        "System",
+    ) catch unreachable;
 
     const fs_node = create_resource(
         Guid.fromString("0d132c17-8f92-4861-a735-d78c753b73cf") catch unreachable,
-        null, "Fs") catch unreachable;
+        null,
+        "Fs",
+    ) catch unreachable;
 
-    const devices_node = create_resource(
+    const mem_node = create_resource(
+        Guid.fromString("0d132c17-8f92-4861-a735-d78c753b73aa") catch unreachable,
+        null,
+        "Memory",
+    ) catch unreachable;
+
+    const dev_node = create_resource(
         Guid.fromString("753d870c-e51b-40d2-96b9-beb3bfa8cd02") catch unreachable,
-        null, "Devices") catch unreachable;
+        null,
+        "Devices",
+    ) catch unreachable;
 
-    _ = kernel_node;
+    { // Internal memory related
+        _ = create_callable(mem_node, "lsmemtable", root.system.pmm.lsmemtable) catch unreachable;
+    }
+    _ = sys_node;
     _ = fs_node;
-    _ = devices_node;
-
+    _ = dev_node;
 }
 
 pub fn lscaps() void {
     log.warn("lscaps", .{});
-    var buf: std.ArrayList(u8) = .init(allocator);
-    defer buf.deinit();
+    var buf: std.ArrayList(u8) = .empty;
+    defer buf.deinit(allocator);
 
-    var writer = buf.writer();
+    var writer = buf.writer(allocator);
 
     const StackItem = struct {
         node: *Node,
         index: usize = 0,
         wrote: bool = false,
     };
-    var stack: std.ArrayList(StackItem) = .init(allocator);
-    defer stack.deinit();
+    var stack: std.ArrayList(StackItem) = .empty;
+    defer stack.deinit(allocator);
 
-    stack.append(.{ .node = &capabilities_root }) catch root.oom_panic();
-
+    stack.append(allocator, .{ .node = &capabilities_root }) catch root.oom_panic();
 
     while (stack.items.len > 0) {
-        var current = &stack.items[stack.items.len-1];
+        var current = &stack.items[stack.items.len - 1];
 
         if (!current.wrote) {
             switch (current.node.data) {
                 .resource => |_| {
-                    for (0..stack.items.len-1) |_| writer.writeAll("  ") catch unreachable;
-                    writer.print("{s} ({}) {{\n",
-                        .{ current.node.name, current.node.guid }) catch unreachable;
+                    for (0..stack.items.len - 1) |_| writer.writeAll("  ") catch unreachable;
+                    writer.print("{s} ({f}) {{\n", .{ current.node.name, current.node.guid }) catch unreachable;
                 },
                 .callable => |c| {
                     for (0..stack.items.len) |_| writer.writeAll("  ") catch unreachable;
-                    writer.print("callable {s} -> ${x}\n",
-                        .{ current.node.name, @intFromPtr(c) }) catch unreachable;
+                    writer.print("callable {s} -> ${x}\n", .{ current.node.name, @intFromPtr(c) }) catch unreachable;
                 },
                 .field => |f| {
                     for (0..stack.items.len) |_| writer.writeAll("  ") catch unreachable;
-                    writer.print("field    {s} -> ${x}\n",
-                        .{ current.node.name, @intFromPtr(f) }) catch unreachable;
+                    writer.print("field    {s} -> ${x}\n", .{ current.node.name, @intFromPtr(f) }) catch unreachable;
                 },
                 .event => |e| {
                     for (0..stack.items.len) |_| writer.writeAll("  ") catch unreachable;
-                    writer.print("event    {s} -> ${x}, ${x}\n",
-                        .{ current.node.name, @intFromPtr(e.bind_callback),@intFromPtr(e.unbind_callback) }) catch unreachable;
+                    writer.print("event    {s} -> ${x}, ${x}\n", .{ current.node.name, @intFromPtr(e.bind_callback), @intFromPtr(e.unbind_callback) }) catch unreachable;
                 },
             }
             current.wrote = true;
         }
 
         if (current.node.data == .resource) {
-
             if (current.index == current.node.data.resource.children.count()) {
                 _ = stack.pop();
                 for (0..stack.items.len) |_| writer.writeAll("  ") catch unreachable;
@@ -103,10 +105,9 @@ pub fn lscaps() void {
                 continue;
             }
 
-            stack.append(.{ .node = current.node.data.resource.children.values()[current.index] }) catch root.oom_panic();
+            stack.append(allocator, .{ .node = current.node.data.resource.children.values()[current.index] }) catch root.oom_panic();
             current.index += 1;
             continue;
-
         }
         _ = stack.pop();
     }
@@ -139,7 +140,6 @@ pub fn get_root() callconv(.c) *Node {
 
 /// Generic node creation
 fn create_new_node(guid: Guid, parent: ?*Node, name: []const u8) !*Node {
-
     const real_parent: *Node = parent orelse &capabilities_root;
 
     if (real_parent.data != .resource) return error.ParentIsNotResource;
@@ -149,12 +149,11 @@ fn create_new_node(guid: Guid, parent: ?*Node, name: []const u8) !*Node {
     for (name) |c| if (!std.ascii.isAlphanumeric(c) and c != '_') return error.InvalidNameIdentifier;
 
     const nn = Node.create(allocator, real_parent, guid, name) catch root.oom_panic();
-    
+
     real_parent.data.resource.children.put(allocator, name, nn) catch root.oom_panic();
     if (!guid.isZero()) capabilities_all.put(allocator, nn.guid, nn) catch root.oom_panic();
 
     return nn;
-
 }
 
 /// Provides a zig interface for creating a new resource in the capabilities tree
@@ -186,6 +185,6 @@ pub fn create_event(
     nn.data = .{ .event = .{
         .bind_callback = bind,
         .unbind_callback = unbind,
-    }};
+    } };
     return nn;
 }

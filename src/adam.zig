@@ -165,19 +165,31 @@ pub fn _start(args: ?*anyopaque) callconv(.c) noreturn {
 fn _random_infodump() void {
     const lsblk: *const fn () callconv(.c) void = @ptrCast((root.capabilities.get_node("Devices.MassStorage.lsblk") orelse unreachable).data.callable);
     const lspci: *const fn () callconv(.c) void = @ptrCast((root.capabilities.get_node("Devices.PCI.lspci") orelse unreachable).data.callable);
+    const lsmemtbl: *const fn () callconv(.c) void = @ptrCast((root.capabilities.get_node("Memory.lsmemtable") orelse unreachable).data.callable);
 
     log.info("\nStage 2: Adam's debug info:\n", .{});
+
+    log.info("", .{});
+    lsmemtbl();
+
+    log.info("", .{});
     threading.procman.lstasks();
+
     log.info("", .{});
     modules.lsmodules();
+
     log.info("", .{});
     lsblk();
+
     log.info("", .{});
     lspci();
-    //log.info("", .{});
-    //root.capabilities.lscaps();
+
+    log.info("", .{});
+    root.capabilities.lscaps();
+
     log.info("", .{});
     root.auth.lsusers();
+    
     log.info("", .{});
     root.fs.lsroot();
 }

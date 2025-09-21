@@ -129,6 +129,7 @@ pub inline fn get_boot_info() BootInfo {
 /// system execution. For now, it will just generate
 /// a kernel panic.
 pub fn oom_panic() noreturn {
+    mem.pmm.lsmemtable();
     @panic("OOM");
 }
 var panicked: bool = false;
@@ -149,11 +150,6 @@ pub fn panic(msg: []const u8, _: ?*std.builtin.StackTrace, _: ?usize) noreturn {
     std.log.info("!                   KERNEL PANIC                   !", .{});
     std.log.info("!--------------------------------------------------!", .{});
     std.log.info("\nError: {s}\n", .{msg});
-
-    var dalloc = mem.vmm.get_debug_allocator_controller();
-    if (dalloc != null) {
-        _ = dalloc.?.deinit();
-    }
 
     std.log.info("\nStack Trace in stderr", .{});
     debug.dumpStackTrace(@frameAddress());

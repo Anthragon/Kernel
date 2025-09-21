@@ -6,6 +6,7 @@ const log = std.log.scoped(.theading);
 
 pub const Process = @import("Process.zig");
 pub const Task = @import("Task.zig");
+pub const Mutex = @import("Mutex.zig");
 
 pub const TaskContext = sys.TaskContext;
 

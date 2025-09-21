@@ -22,9 +22,9 @@ pub var kernel_virt_end: usize = undefined;
 
 pub const page_size = 4096;
 
-pub const atributes_ROX_privileged_fixed = root.system.mem_paging.Attributes {
+pub const atributes_ROX_privileged_fixed = root.system.mem_paging.Attributes{
     .privileged = true,
-    
+
     .read = true,
     .write = true,
     .execute = true,
@@ -34,21 +34,13 @@ pub const atributes_ROX_privileged_fixed = root.system.mem_paging.Attributes {
     .lock = true,
 };
 
-
 pub fn setup() void {
-    
     var blocks: [30]Block = undefined;
     @memset(&blocks, @bitCast(@as(u320, 0)));
 
     memory_blocks_buffer = &blocks;
     memory_blocks_root = &blocks[0];
-    memory_blocks_root.* = .{
-        .start = 0,
-        .length = 0,
-        .status = .reserved,
-        .previous = null,
-        .next = null
-    };
+    memory_blocks_root.* = .{ .start = 0, .length = 0, .status = .reserved, .previous = null, .next = null };
 
     var next_free_block: usize = 1;
 
@@ -57,7 +49,6 @@ pub fn setup() void {
     const mmap = boot_info.memory_map;
 
     for (mmap) |i| {
-
         if (i.type == .usable) {
             // Entry is useable, do some checks and if valid,
             // mark it as free
@@ -68,54 +59,27 @@ pub fn setup() void {
             // cases but i prefer to ignore it
             if (i.base < 0x100000) continue;
 
-            log.debug("[mem {X:0>16}..{X:0>16}] free", .{ i.base, i.base + i.size});
+            log.debug("[mem {X:0>16}..{X:0>16}] free", .{ i.base, i.base + i.size });
 
             // Marking block as free
-            blocks[next_free_block] = .{
-                .start = i.base / page_size,
-                .length = i.size / page_size,
-
-                .status = .free,
-
-                .previous = null,
-                .next = null
-            };
-            
+            blocks[next_free_block] = .{ .start = i.base / page_size, .length = i.size / page_size, .status = .free, .previous = null, .next = null };
         } else if (i.type == .framebuffer) {
             // I personally prefer have track of the framebuffer
-            log.debug("[mem {X:0>16}..{X:0>16}] framebuffer", .{ i.base, i.base + i.size});
+            log.debug("[mem {X:0>16}..{X:0>16}] framebuffer", .{ i.base, i.base + i.size });
 
             // Marking block as free
-            blocks[next_free_block] = .{
-                .start = i.base / page_size,
-                .length = i.size / page_size,
-
-                .status = .framebuffer,
-
-                .previous = null,
-                .next = null
-            };
-
+            blocks[next_free_block] = .{ .start = i.base / page_size, .length = i.size / page_size, .status = .framebuffer, .previous = null, .next = null };
         } else if (i.type == .kernel_and_modules) {
             // Entry is not usable, but will be marked
             // as kernel
 
-            log.debug("[mem {X:0>16}..{X:0>16}] kernel", .{ i.base, i.base + i.size});
-            blocks[next_free_block] = .{
-                .start = i.base / page_size,
-                .length = i.size / page_size,
+            log.debug("[mem {X:0>16}..{X:0>16}] kernel", .{ i.base, i.base + i.size });
+            blocks[next_free_block] = .{ .start = i.base / page_size, .length = i.size / page_size, .status = .kernel, .previous = null, .next = null };
 
-                .status = .kernel,
-
-                .previous = null,
-                .next = null
-            };
-        
             kernel_page_start = i.base / page_size;
             kernel_page_end = kernel_page_start + i.size / page_size;
-
         } else {
-            log.debug("[mem {X:0>16}..{X:0>16}] skipped ({s})", .{ i.base, i.base + i.size, @tagName(i.type)});
+            log.debug("[mem {X:0>16}..{X:0>16}] skipped ({s})", .{ i.base, i.base + i.size, @tagName(i.type) });
             continue;
         }
 
@@ -127,12 +91,11 @@ pub fn setup() void {
 
         next_free_block += 1;
         total_memory_bytes += i.size;
-
     }
 
     const size = root.lib.utils.units.calc(total_memory_bytes, &root.lib.utils.units.data);
 
-    log.info("Total memory available: {d:.2} {s} ({} pages)", .{size.@"0", size.@"1", total_memory_bytes / page_size});
+    log.info("Total memory available: {d:.2} {s} ({} pages)", .{ size.@"0", size.@"1", total_memory_bytes / page_size });
     log.debug("\nHHDM offset: {X}", .{hhdm_offset});
 
     paging.enumerate_paging_features();
@@ -149,25 +112,24 @@ pub fn setup() void {
     kernel_virt_start = std.mem.alignBackward(usize, boot_info.kernel_base_virtual, page_size);
     kernel_virt_end = std.mem.alignForward(usize, @intFromPtr(@extern(*u64, .{ .name = "__kernel_end__" })), page_size);
 
-    log.debug("phys base: {X: >16}", .{ kernel_phys });
-    log.debug("phys end:  {X: >16}", .{ kernel_phys + kernel_len });
-    log.debug("virt base: {X: >16}", .{kernel_virt_start });
-    log.debug("virt end:  {X: >16}", .{ kernel_virt_end });
+    log.debug("phys base: {X: >16}", .{kernel_phys});
+    log.debug("phys end:  {X: >16}", .{kernel_phys + kernel_len});
+    log.debug("virt base: {X: >16}", .{kernel_virt_start});
+    log.debug("virt end:  {X: >16}", .{kernel_virt_end});
 
     // Creating identity map
     const idmap_len = std.math.shl(usize, 1, phys_mapping_range_bits);
-    log.debug("\nMarking identity map {x}..{x}...", .{hhdm_offset, hhdm_offset + idmap_len});
+    log.debug("\nMarking identity map {x}..{x}...", .{ hhdm_offset, hhdm_offset + idmap_len });
     paging.map_range(0, hhdm_offset, idmap_len, atributes_ROX_privileged_fixed) catch unreachable;
 
     // Mapping kernel
     log.debug("Marking kernel...", .{});
-    log.debug("\nmapping kernel range {x} .. {x} ({} pages) to {x}..{x}", .{
-        kernel_phys, kernel_phys + kernel_len, kernel_len / page_size, kernel_virt_start, kernel_virt_end});
+    log.debug("\nmapping kernel range {x} .. {x} ({} pages) to {x}..{x}", .{ kernel_phys, kernel_phys + kernel_len, kernel_len / page_size, kernel_virt_start, kernel_virt_end });
     paging.map_range(kernel_phys, kernel_virt_start, kernel_len, atributes_ROX_privileged_fixed) catch unreachable;
 
     log.debug("Commiting new map to CR3...", .{});
     paging.commit_map();
-    
+
     log.info("\nOk theorically we are in our owm mem map now...", .{});
     log.info("Nothing exploded yay :3...", .{});
 
@@ -178,8 +140,10 @@ pub fn setup() void {
     var cblk: ?*Block = memory_blocks_root;
     var idx: usize = 0;
 
-    while (cblk) |cur_block| : ({ idx += 1; cblk = cur_block.next; }) {
-
+    while (cblk) |cur_block| : ({
+        idx += 1;
+        cblk = cur_block.next;
+    }) {
         memory_blocks_buffer[idx].status = cur_block.status;
         memory_blocks_buffer[idx].start = cur_block.start;
         memory_blocks_buffer[idx].length = cur_block.length;
@@ -192,19 +156,13 @@ pub fn setup() void {
 
     memory_blocks_buffer[0].previous = null;
     memory_blocks_buffer[idx - 1].next = null;
-    @memset(memory_blocks_buffer[idx..], .{
-        .start = 0,
-        .length = 0,
-        .status = .unused,
-        .previous = null,
-        .next = null
-    });
+    @memset(memory_blocks_buffer[idx..], .{ .start = 0, .length = 0, .status = .unused, .previous = null, .next = null });
 
     memory_blocks_root = &memory_blocks_buffer[0];
     log.debug("Memory blocks final heap created", .{});
 }
 
-pub fn lsmemblocks() void {
+pub fn lsmemtable() callconv(.c) void {
     log.warn("lsmemblocks", .{});
     log.info("\nPhysical Memory Blocks:", .{});
 
@@ -217,19 +175,13 @@ pub fn lsmemblocks() void {
     log.info("| Beguin     End        Length     Ptr              Length (bytes)   Status", .{});
     log.info("|---------------------------------------------------------------------------------", .{});
 
-    while (cur != null) : ({last = cur; cur = cur.?.next;}) {
+    while (cur != null) : ({
+        last = cur;
+        cur = cur.?.next;
+    }) {
         if (cur.?.previous != last) break;
 
-        log.info("| {: >10} {: >10} {: >10} {x: >16} {: >16} {s}", .{
-            cur.?.start,
-            cur.?.start + cur.?.length,
-            cur.?.length,
-
-            cur.?.start * page_size,
-            cur.?.length * page_size,
-
-            @tagName(cur.?.status)
-        });
+        log.info("| {: >10} {: >10} {: >10} {x: >16} {: >16} {s}", .{ cur.?.start, cur.?.start + cur.?.length, cur.?.length, cur.?.start * page_size, cur.?.length * page_size, @tagName(cur.?.status) });
 
         if (cur.?.status == .free) free_pages += cur.?.length else used_pages += cur.?.length;
     }
@@ -237,7 +189,12 @@ pub fn lsmemblocks() void {
     log.info("|---------------------------------------------------------------------------------", .{});
 
     log.info("{} free pages", .{free_pages});
-    log.info("{} used pages\n", .{used_pages});
+    log.info("{} used pages", .{used_pages});
+
+    const free_float: f64 = @floatFromInt(free_pages);
+    const used_float: f64 = @floatFromInt(used_pages);
+
+    log.info("{d:.2}% memory used\n", .{used_float / free_float * 100});
 }
 
 /// Allocates and returns a single page
@@ -248,10 +205,7 @@ pub fn get_single_page(status: BlockStatus) *anyopaque {
     var free_block = b: {
         var a: ?*Block = memory_blocks_root;
         while (a != null and a.?.status != .free) : (a = a.?.next) {}
-        if (a == null) {
-            lsmemblocks();
-            @panic("OOM");
-        }
+        if (a == null) root.oom_panic();
         break :b a.?;
     };
 
@@ -260,7 +214,6 @@ pub fn get_single_page(status: BlockStatus) *anyopaque {
         free_block.status = status;
         block = free_block;
     } else {
-
         var new_block = b: {
             for (memory_blocks_buffer) |*mb| {
                 if (mb.status == .unused) break :b mb;
@@ -289,25 +242,21 @@ pub fn get_single_page(status: BlockStatus) *anyopaque {
     // try merge blocks
     if (block.previous) |prev| {
         if (prev.status == block.status and prev.start + prev.length == block.start) {
-
             prev.length += block.length;
             prev.next = block.next;
             if (block.next) |n| n.previous = prev;
 
             block.status = .unused;
             block = prev;
-
         }
     }
     if (block.next) |next| {
         if (next.status == block.status and next.start == block.start + block.length) {
-
             block.length += next.length;
             block.next = next.next;
             if (next.next) |n| n.previous = block;
 
             next.status = .unused;
-
         }
     }
 
@@ -320,10 +269,7 @@ pub fn get_multiple_pages(len: usize, status: BlockStatus) ?*anyopaque {
     var free_block = b: {
         var a: ?*Block = memory_blocks_root;
         while (a != null and (a.?.status != .free or a.?.length < len)) : (a = a.?.next) {}
-        if (a == null) {
-            lsmemblocks();
-            @panic("OOM");
-        }
+        if (a == null) root.oom_panic();
         break :b a.?;
     };
 
@@ -332,7 +278,6 @@ pub fn get_multiple_pages(len: usize, status: BlockStatus) ?*anyopaque {
         free_block.status = status;
         block = free_block;
     } else {
-
         var new_block = b: {
             for (memory_blocks_buffer) |*mb| {
                 if (mb.status == .unused) break :b mb;
@@ -403,7 +348,7 @@ const Block = extern struct {
     status: BlockStatus,
 
     previous: ?*Block,
-    next: ?*Block
+    next: ?*Block,
 };
 
 const BlockStatus = root.system.mem_paging.MemStatus;
