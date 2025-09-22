@@ -9,6 +9,7 @@ const log = std.log.scoped(.modules);
 
 const Result = interop.Result;
 const Guid = utils.Guid;
+const Module = @import("Module.zig");
 
 const allocator = root.mem.heap.kernel_buddy_allocator;
 
@@ -31,7 +32,7 @@ pub inline fn get_module_by_uuid(uuid: Guid) ?*Module {
     return modules_map.getPtr(@bitCast(uuid));
 }
 
-pub export fn register_module(
+pub fn register_module(
     name: [*:0]const u8,
     version: [*:0]const u8,
     author: [*:0]const u8,
@@ -39,7 +40,7 @@ pub export fn register_module(
     uuid: u128,
     init_func: *const fn () callconv(.c) bool,
     deinit_func: *const fn () callconv(.c) void,
-) Result(void) {
+) callconv(.c) Result(void) {
     register_module_internal(
         std.mem.sliceTo(name, 0),
         std.mem.sliceTo(version, 0),
@@ -56,10 +57,10 @@ pub export fn register_module(
     return .retvoid();
 }
 fn register_module_internal(
-    name: []const u8,
-    version: []const u8,
-    author: []const u8,
-    license: []const u8,
+    name: [:0]const u8,
+    version: [:0]const u8,
+    author: [:0]const u8,
+    license: [:0]const u8,
     uuid: u128,
     init_func: *const fn () callconv(.c) bool,
     deinit_func: *const fn () callconv(.c) void,
@@ -90,10 +91,10 @@ fn register_module_internal(
         .init = init_func,
         .deinit = deinit_func,
 
-        .status = ModuleStatus.Waiting,
-        .permissions = undefined,
-    }) catch @panic("OOM");
-    unitialized_list.append(allocator, uuid) catch @panic("OOM");
+        .allocator = .init(),
+        .status = .Waiting,
+    }) catch root.oom_panic();
+    unitialized_list.append(allocator, uuid) catch root.oom_panic();
 
     // TODO some logic to wake up adam
 
@@ -109,21 +110,3 @@ pub inline fn get_next_waiting_module() ?*Module {
     }
     return modules_map.getPtr(unitialized_list.orderedRemove(0));
 }
-
-pub const Module = struct {
-    name: []const u8,
-    version: []const u8,
-    author: []const u8,
-    license: []const u8,
-    uuid: root.utils.Guid,
-
-    init: *const fn () callconv(.c) bool,
-    deinit: *const fn () callconv(.c) void,
-
-    status: ModuleStatus,
-    permissions: ModulePermissions,
-};
-
-pub const ModuleStatus = enum { Waiting, Ready, Failed, Active };
-
-pub const ModulePermissions = packed struct(u64) { pci_devices: bool = false, acpi_devices: bool = false, usb_devices: bool = false, _: u61 = 0 };

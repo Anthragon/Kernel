@@ -13,13 +13,10 @@ var proc_list: []?*Process = undefined;
 const Process = threading.Process;
 
 pub fn init() void {
-    proc_list = allocator.alloc(?*threading.Process, 32) catch {
-        log.info("Failed to allocate process list", .{});
-        @panic("OOM");
-    };
+    proc_list = allocator.alloc(?*threading.Process, 32) catch root.oom_panic();
     @memset(proc_list, null);
 
-    // setting the process 0 (kernel process)
+    // initializing process 0 (kernel process)
     const kproc = allocator.create(threading.Process) catch @panic("OOM");
     kproc.* = threading.Process{
         .process_id = 0,
@@ -36,6 +33,7 @@ pub fn init() void {
 // implemented in the kernel
 pub fn create_process(name: []const u8, user: *root.auth.User) !*Process {
     var proc = try allocator.create(threading.Process);
+    errdefer allocator.destroy(proc);
 
     proc.* = .{
         .process_id = 0,
@@ -71,10 +69,12 @@ pub fn lsproc() void {
 
     for (proc_list) |proc| {
         if (proc) |p| {
-            log.info("{: <2} - {s} (running by {s})", .{
+            log.info("{: <2} - {s} - {s} (running by {s}) - {} tasks", .{
                 p.process_id,
                 p.name,
+                @tagName(p.privilege),
                 p.user.name,
+                p.tasks.len,
             });
         }
     }
@@ -85,9 +85,17 @@ pub fn lstasks() void {
 
     for (proc_list) |proc| {
         if (proc) |p| {
+            log.info("{: <2} - {s} - {s} (running by {s}) - {} tasks", .{
+                p.process_id,
+                p.name,
+                @tagName(p.privilege),
+                p.user.name,
+                p.tasks.len,
+            });
+
             for (p.tasks) |task| {
                 if (task) |t| {
-                    log.info("{X:0>4}:{X:0>4} - {s} - created at {f}", .{
+                    log.info("    {X:0>4}:{X:0>4} - {s} - created at {f}", .{
                         p.process_id,
                         t.task_id,
                         @tagName(t.state),

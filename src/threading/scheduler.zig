@@ -16,11 +16,10 @@ pub fn init() void {
 }
 
 pub fn append_task(t: *Task) void {
-    task_list.append(allocator, t) catch @panic("OOM");
-    root.threading.procman.lstasks();
+    task_list.append(allocator, t) catch root.oom_panic();
 }
 
-pub fn do_schedule(current_frame: *TaskContext) void {
+pub fn do_schedule(current_frame: *TaskContext) callconv(.c) void {
 
     if (current_task) |ct| ct.context = current_frame.*;
 

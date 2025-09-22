@@ -41,6 +41,13 @@ pub const BuddyAllocator = struct {
             .vtable = &vtable,
         };
     }
+
+    pub fn init() BuddyAllocator {
+        return .{};
+    }
+    pub fn deinit(s: *@This()) void {
+        _ = s;
+    }
 };
 
 fn alloc(context: *anyopaque, len: usize, alignment: mem.Alignment, ra: usize) ?[*]u8 {
