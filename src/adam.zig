@@ -137,7 +137,7 @@ pub fn _start(args: ?*anyopaque) callconv(.c) noreturn {
     // load configuration in users.toml
     const users_toml_file: ?lib.common.FsNode = root.fs.get_node("sys/users.toml").asbuiltin() catch |err| switch (err) {
         KernelError.NotFound => null,
-        else => std.debug.panic("Error trying to read `setup.toml` file: {s}", .{@errorName(err)}),
+        else => std.debug.panic("Error trying to read `sys/users.toml` file: {s}", .{@errorName(err)}),
     };
     if (users_toml_file) |users_toml| {
         const file_content = users_toml.readAll(allocator) catch unreachable;
@@ -189,7 +189,7 @@ fn _random_infodump() void {
 
     log.info("", .{});
     root.auth.lsusers();
-    
+
     log.info("", .{});
     root.fs.lsroot();
 }
