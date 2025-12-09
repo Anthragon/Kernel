@@ -7,6 +7,10 @@ const ports = @import("ports.zig");
 
 const debug = root.debug;
 const log = std.log.scoped(.x86_64_IDT);
+const handler_impl = @extern(
+    ?*const fn (*TaskContext) callconv(.c) void,
+    .{ .name = "interrupt_handler" },
+) orelse @panic("Expected 'interrupt_handler' function implementation");
 
 var entries: [256]Entry = undefined;
 
@@ -30,7 +34,13 @@ var current_ptr: Pointer = undefined;
 
 pub fn install() void {
     inline for (0..256) |i| {
-        set_entry(&entries, @intCast(i), make_handler(comptime @intCast(i)), gdt.selector.code64, 0);
+        set_entry(
+            &entries,
+            @intCast(i),
+            make_handler(comptime @intCast(i)),
+            gdt.selector.code64,
+            0,
+        );
     }
 
     load_idt(&entries);
@@ -139,7 +149,7 @@ export fn interrupt_common() callconv(.naked) void {
         \\mov %%ax, %%es
         \\mov %%ax, %%ds
         \\ 
-        \\call interrupt_handler
+        \\call __internal_interrupt_handler__
         \\
         \\pop %%rax
         \\pop %%rax
@@ -173,8 +183,8 @@ export fn interrupt_common() callconv(.naked) void {
     );
 }
 
-export fn interrupt_handler(fptr: u64) void {
+export fn __internal_interrupt_handler__(fptr: u64) void {
     const int_frame: *TaskContext = @ptrFromInt(fptr);
-    @import("../interrupts.zig").interrupt_handler(int_frame);
+    handler_impl(int_frame);
     ports.outb(0x20, 0x20);
 }

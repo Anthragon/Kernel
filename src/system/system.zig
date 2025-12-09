@@ -30,10 +30,6 @@ pub const pmm = switch (arch) {
     .x86_64 =>  @import("x86_64/mem/pmm.zig"),
     else => unreachable
 };
-/// Virtual Memory Manager
-pub const vmm = @import("mem/vmm.zig");
-/// Interrupt management
-pub const interrupts = @import("interrupts.zig");
 
 // Tasks and Theading
 /// Task Context
@@ -49,10 +45,6 @@ pub const TaskGeneralFlags = struct {
     overflow: bool,
     interrupt: bool
 };
-
-/// Timing and timestamps \
-/// (mainly used by time service)
-pub const time = @import("time.zig");
 
 // Misc
 /// Quick assembly interface

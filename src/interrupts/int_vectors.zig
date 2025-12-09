@@ -2,25 +2,25 @@
 const std = @import("std");
 const root = @import("root");
 const sys = root.system;
-const interrupts = sys.interrupts;
 const debug = root.debug;
 const log = std.log.scoped(.main);
 
 const TaskContext = root.system.TaskContext;
+const set_vector = root.interrupts.set_vector;
 
-pub fn install_interrupts() void {
+pub fn install_system_interrupts() void {
 
     // Exceptions
-    interrupts.set_vector(0x0, &division_error, .kernel);
+    set_vector(0x0, &division_error, .kernel);
 
-    interrupts.set_vector(0x4, &overflow_error, .kernel);
-    interrupts.set_vector(0x5, &bound_range_exceeded, .kernel);
-    interrupts.set_vector(0x6, &invalid_opcode, .kernel);
+    set_vector(0x4, &overflow_error, .kernel);
+    set_vector(0x5, &bound_range_exceeded, .kernel);
+    set_vector(0x6, &invalid_opcode, .kernel);
 
-    interrupts.set_vector(0x8, &double_fault, .kernel);
+    set_vector(0x8, &double_fault, .kernel);
 
-    interrupts.set_vector(0x0d, &general_protection_fault, .kernel);
-    interrupts.set_vector(0x0e, &page_fault, .kernel);
+    set_vector(0x0d, &general_protection_fault, .kernel);
+    set_vector(0x0e, &page_fault, .kernel);
 }
 
 fn division_error(frame: *TaskContext) void {

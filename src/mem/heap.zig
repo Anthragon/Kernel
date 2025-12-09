@@ -8,7 +8,7 @@ const debug = root.debug;
 
 /// This is an simplier and direct interface to the real page allocator.
 /// Use it it you need some pages!
-pub const kernel_page_allocator = root.system.vmm.PageAllocator;
+pub const kernel_page_allocator = @import("page_allocator.zig").KernelPageAllocator;
 
 /// This is a abstraction above the `kernel_page_allocator` to be able to
 /// use it as a zig's PageAllocator

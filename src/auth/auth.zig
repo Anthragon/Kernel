@@ -83,7 +83,7 @@ pub fn append_user(options: struct {
     };
 
     nuser.creation_timestamp = if (options.creation_timestamp == null)
-        root.system.time.timestamp()
+        root.time.timestamp()
     else
         options.creation_timestamp.?;
 

@@ -64,7 +64,7 @@ fn write_log_message(out: bool, err: bool, scr: bool, content: []const u8) void 
 
 var step_entropy: usize = 0;
 fn criptoRandomSeed(buffer: []u8) void {
-    const timestamp = root.system.time.timestamp();
+    const timestamp = root.time.timestamp();
     const io_entropy = ports.inb(0x40);
 
     var seed = timestamp ^ (@as(u64, io_entropy) << 56) ^ step_entropy;

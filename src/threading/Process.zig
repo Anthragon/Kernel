@@ -64,7 +64,7 @@ pub fn create_task(s: *@This(), entry: TaskEntry, stack: ?[]u8, priority: u8) !*
         .state = .Ready,
         .context = std.mem.zeroes(TaskContext),
         .process = s,
-        .creation_timestamp = root.system.time.timestamp(),
+        .creation_timestamp = root.time.timestamp(),
     };
     s.tasks[tid] = ntask;
 

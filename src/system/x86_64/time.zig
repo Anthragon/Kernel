@@ -1,13 +1,16 @@
 const std = @import("std");
 const root = @import("root");
 const ports = @import("ports.zig");
-const global = @import("../time.zig");
+
+const Date = root.lib.common.time.Date;
+const Time = root.lib.common.time.Time;
+const DateTime = root.lib.common.time.DateTime;
 
 pub fn timestamp() u64 {
     return rtc_to_unix(read_rtc_stable());
 }
 
-pub fn get_date() global.Date {
+pub fn get_date() Date {
     const raw_date = read_rtc_stable();
 
     return .{
@@ -17,7 +20,7 @@ pub fn get_date() global.Date {
     };
 }
 
-pub fn get_time() global.Time {
+pub fn get_time() Time {
     const raw_time = read_rtc_stable();
 
     return .{
@@ -27,10 +30,17 @@ pub fn get_time() global.Time {
     };
 }
 
-pub fn get_datetime() global.DateTime {
+pub fn get_datetime() DateTime {
     const datetime = read_rtc_stable();
 
-    return .{ .day = datetime.day, .month = datetime.month, .year = datetime.year, .seconds = datetime.sec, .minutes = datetime.min, .hours = datetime.hour };
+    return .{
+        .day = datetime.day,
+        .month = datetime.month,
+        .year = datetime.year,
+        .seconds = datetime.sec,
+        .minutes = datetime.min,
+        .hours = datetime.hour,
+    };
 }
 
 // CMOS IO operations

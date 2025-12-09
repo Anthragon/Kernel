@@ -24,7 +24,7 @@ pub fn init() void {
         .tasks = &.{},
         .user = auth.get_user_by_index(0).?, // 0 = Adam
         .privilege = .kernel,
-        .creation_timestamp = root.system.time.timestamp(),
+        .creation_timestamp = root.time.timestamp(),
     };
     proc_list[0] = kproc;
 }
@@ -99,7 +99,7 @@ pub fn lstasks() void {
                         p.process_id,
                         t.task_id,
                         @tagName(t.state),
-                        root.system.time.DateTime.from_timestamp(t.creation_timestamp),
+                        root.time.DateTime.from_timestamp(t.creation_timestamp),
                     });
                 }
             }

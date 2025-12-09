@@ -204,7 +204,7 @@ pub const TaskContext = extern struct {
         try fmt.print("GDT=     {X:0>16} {X:0>8}\n", .{ gdt.get_ptr().base, gdt.get_ptr().limit });
         try fmt.print("IDT=     {X:0>16} {X:0>8}\n", .{ idt.get_ptr().base, idt.get_ptr().limit });
 
-        try fmt.print("CR2={x:0>16}\n", .{self.cr2});
+        try fmt.print("CR2={x:0>16} INT={x:0>8}\n", .{ self.cr2, self.intnum });
     }
     fn write_segment(writer: anytype, reg: *const [2:0]u8, selector: usize) !void {
         const index = selector >> 3;

@@ -9,6 +9,8 @@ pub const common = .{
     .PartEntry = @import("common/DiskEntry.zig").PartitionEntry,
 
     .FsNode = @import("common/FsNode.zig").FsNode,
+
+    .time = @import("common/time.zig"),
 };
 
 pub const capabilities = @import("root").capabilities;

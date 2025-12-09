@@ -13,24 +13,18 @@ pub var interrupts: [256]?InterruptHandler = [_]?InterruptHandler{null} ** 256;
 pub const syscall_vector: u8 = 0x80;
 pub const spurious_vector: u8 = 0xFF;
 
-const system_idt = switch (sys.arch) {
-    .x86_64 => @import("x86_64/interruptDescriptorTable.zig"),
-    else => unreachable,
-};
-
-// Interrupt functions
-fn unhandled_interrupt(frame: *TaskContext) void {
-    log.debug("\nUnhandled interrupt {0} (0x{0X:0>2})!", .{frame.intnum});
-    log.debug("{f}", .{frame});
-}
-
-pub fn interrupt_handler(int_frame: *TaskContext) void {
+export fn interrupt_handler(int_frame: *TaskContext) callconv(.c) void {
     int_frame.intnum &= 0xFF;
     //log.info("Branching to interrupt {X:0>2}...", .{int_frame.intnum});
     debug.lock_frame(int_frame.get_frame_base());
     const handler = interrupts[int_frame.intnum] orelse unhandled_interrupt;
     handler(int_frame);
     debug.unlock_frame();
+}
+
+fn unhandled_interrupt(frame: *TaskContext) void {
+    log.debug("\nUnhandled interrupt {0} (0x{0X:0>2})!", .{frame.intnum});
+    log.debug("{f}", .{frame});
 }
 
 // Allocates a not used interrupt and returns it number
@@ -43,5 +37,5 @@ pub fn allocate_vector() u8 {
 
 pub fn set_vector(int: u8, func: ?InterruptHandler, privilege: sys.Privilege) void {
     interrupts[int] = func;
-    system_idt.set_privilege(int, privilege);
+    @import("../system/x86_64/interruptDescriptorTable.zig").set_privilege(int, privilege);
 }

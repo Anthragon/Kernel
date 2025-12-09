@@ -8,6 +8,10 @@ pub const boot = @import("boot/boot.zig");
 pub const system = @import("system/system.zig");
 /// Memory and Memory-management related
 pub const mem = @import("mem/mem.zig");
+// Interrupts service
+pub const interrupts = @import("interrupts/interrupts.zig");
+/// Time service
+pub const time = @import("time/time.zig");
 /// Simple CPU-based graphics library
 pub const basicgl = @import("basicgl/basicgl.zig");
 /// Galvan File System interface
@@ -51,17 +55,20 @@ pub fn main(_boot_info: BootInfo) noreturn {
     system.assembly.flags.clear_interrupt();
 
     // Setting up basic text graphics mode
-    basicgl.init(boot_info.framebuffer.framebuffer, boot_info.framebuffer.width, boot_info.framebuffer.height, boot_info.framebuffer.pps);
+    basicgl.init(
+        boot_info.framebuffer.framebuffer,
+        boot_info.framebuffer.width,
+        boot_info.framebuffer.height,
+        boot_info.framebuffer.pps,
+    );
     basicgl.clear();
 
     // Setupping system-dependant resources
-    system.init() catch {
-        @panic("System could not be initialized!");
-    };
+    system.init() catch @panic("System could not be initialized!");
     // Setting up Virtual memory manager
-    system.vmm.init();
+    mem.vmm.init();
     // Setting up interrupts
-    @import("interrupts.zig").install_interrupts();
+    @import("interrupts/int_vectors.zig").install_system_interrupts();
 
     // Printing hello world
     log.info("\nHello, World from {s}!", .{@tagName(system.arch)});
@@ -73,10 +80,10 @@ pub fn main(_boot_info: BootInfo) noreturn {
 
     fs.init();
     auth.init();
+    time.init();
     modules.init();
     devices.init();
     threading.init();
-    system.time.init();
 
     log.debug(" # All services ready!", .{});
 
@@ -101,7 +108,7 @@ pub fn main(_boot_info: BootInfo) noreturn {
     log.info("\nDumping random data to see if everything is right:", .{});
 
     log.info("", .{});
-    log.info("Time: {f} ({})", .{ system.time.get_datetime(), system.time.timestamp() });
+    log.info("Time: {f} ({})", .{ time.get_datetime(), time.timestamp() });
     log.info("", .{});
     auth.lsusers();
     log.info("", .{});
@@ -129,7 +136,7 @@ pub inline fn get_boot_info() BootInfo {
 /// system execution. For now, it will just generate
 /// a kernel panic.
 pub fn oom_panic() noreturn {
-    mem.pmm.lsmemtable();
+    mem.lsmemtable();
     @panic("OOM");
 }
 var panicked: bool = false;
