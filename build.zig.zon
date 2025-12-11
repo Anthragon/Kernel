@@ -4,6 +4,8 @@
     .fingerprint = 0x13909c8c16a849a2,
 
     .dependencies = .{
+        .system = .{ .path = "../system" },
+
         .lumiPCI = .{ .path = "../modules/lumiPCI" },
         .lumiAHCI = .{ .path = "../modules/lumiAHCI" },
         .lumiDisk = .{ .path = "../modules/lumiDisk" },

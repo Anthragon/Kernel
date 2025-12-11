@@ -80,8 +80,7 @@ pub fn clear() void {
             : [dst] "r" (fb_ptr),
               [blocks] "r" (blocks),
               [color] "r" (col),
-            : .{ .rax = true, .rcx = true, .rdi = true, .xmm0 = true, .memory = true, .cc = true }
-        );
+            : .{ .rax = true, .rcx = true, .rdi = true, .xmm0 = true, .memory = true, .cc = true });
     }
 
     var start_tail: usize = blocks * 4;
@@ -169,8 +168,7 @@ pub fn draw_char(c: u8, posx: usize, posy: usize) void {
               [dst] "r" (dst_ptr),
               [cfg] "r" (fg_color),
               [cbg] "r" (bg_color),
-            : .{ .rdi = true, .rsi = true, .memory = true, .cc = true }
-        );
+            : .{ .rdi = true, .rsi = true, .memory = true, .cc = true });
     }
 }
 pub fn clear_char(posx: usize, posy: usize) void {
@@ -199,7 +197,6 @@ pub fn clear_char(posx: usize, posy: usize) void {
             : [dst] "r" (dst_ptr),
               [blocks] "r" (blocks),
               [color] "r" (bg_color),
-            : .{ .rax = true, .rcx = true, .rdi = true, .xmm0 = true, .memory = true, .cc = true }
-        );
+            : .{ .rax = true, .rcx = true, .rdi = true, .xmm0 = true, .memory = true, .cc = true });
     }
 }

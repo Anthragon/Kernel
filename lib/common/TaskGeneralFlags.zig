@@ -1,0 +1,5 @@
+carry: bool,
+zero: bool,
+sign: bool,
+overflow: bool,
+interrupt: bool,

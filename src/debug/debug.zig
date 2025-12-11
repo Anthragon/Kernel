@@ -1,10 +1,11 @@
 const root = @import("root");
+const system = @import("system");
 const std = @import("std");
 const builtin = @import("builtin");
 
 const log = std.log.scoped(.no_header);
 
-pub const serial = root.system.serial;
+pub const serial = system.io.serial;
 const tty_config: std.io.tty.Config = .no_color;
 
 const stdout = 1;
@@ -25,11 +26,7 @@ pub fn dumpStackTrace(ret_address: usize) void {
     }
 
     writer.print("Stack trace:\n\n", .{}) catch unreachable;
-    // I hate my life
-    switch (root.system.arch) {
-        .x86_64 => @import("../system/x86_64/debug/stackTrace.zig").dumpStackTrace(real_ret_addr, writer),
-        else => unreachable,
-    }
+    @import("system").debug.dumpStackTrace(real_ret_addr, writer);
 }
 
 pub fn dumpHex(bytes: []const u8) void {

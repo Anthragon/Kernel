@@ -1,11 +1,8 @@
 const std = @import("std");
+const sys = @import("system");
 pub const lib = @import("lib");
-const BootInfo = boot.BootInfo;
+const BootInfo = lib.boot.BootInfo;
 
-/// Boot information structures
-pub const boot = @import("boot/boot.zig");
-/// System-dependent implementations and core subroutines
-pub const system = @import("system/system.zig");
 /// Memory and Memory-management related
 pub const mem = @import("mem/mem.zig");
 // Interrupts service
@@ -39,7 +36,7 @@ pub const interop = lib.interop;
 pub const os = @import("os/os.zig");
 /// Field that allow zig interfaces to comunicate
 /// with the kernel. Do not mind.
-pub const std_options = system.std_options.options;
+pub const std_options = @import("std_options.zig").options;
 
 const log = std.log.scoped(.main);
 
@@ -47,12 +44,12 @@ var boot_info: BootInfo = undefined;
 
 // linking entry point symbol
 comptime {
-    _ = @import("boot/limine/entry.zig");
+    _ = @extern(?*fn () callconv(.c) noreturn, .{ .name = "__boot_entry__" }) orelse unreachable;
 }
 
 pub fn main(_boot_info: BootInfo) noreturn {
     boot_info = _boot_info;
-    system.assembly.flags.clear_interrupt();
+    sys.assembly.flags.clear_interrupt();
 
     // Setting up basic text graphics mode
     basicgl.init(
@@ -64,14 +61,14 @@ pub fn main(_boot_info: BootInfo) noreturn {
     basicgl.clear();
 
     // Setupping system-dependant resources
-    system.init() catch @panic("System could not be initialized!");
+    sys.pre_init() catch @panic("System could not be initialized!");
     // Setting up Virtual memory manager
     mem.vmm.init();
     // Setting up interrupts
     @import("interrupts/int_vectors.zig").install_system_interrupts();
 
     // Printing hello world
-    log.info("\nHello, World from {s}!", .{@tagName(system.arch)});
+    log.info("\nHello, World from {s}!", .{@tagName(sys.arch)});
 
     // Initializing kernel services
     log.debug("\n# Initializing services", .{});
@@ -88,6 +85,7 @@ pub fn main(_boot_info: BootInfo) noreturn {
     log.debug(" # All services ready!", .{});
 
     log.debug("# Registring adam process and task...", .{});
+    
     // Setting up Adam process (process 0)
     const system_proc = threading.procman.get_process_from_pid(0).?;
     // Setting up Adam task
@@ -117,10 +115,9 @@ pub fn main(_boot_info: BootInfo) noreturn {
     threading.procman.lstasks();
 
     log.info("\nSetup finished. Giving control to the scheduler...", .{});
-    system.finalize() catch @panic("System initialization could not be finalized!");
-
+    sys.post_init() catch @panic("System could not be initialized!");
     log.debug("# Giving control to the scheduer...", .{});
-    while (true) system.assembly.flags.set_interrupt();
+    while (true) sys.assembly.flags.set_interrupt();
     unreachable;
 }
 
@@ -147,7 +144,7 @@ pub fn panic(msg: []const u8, _: ?*std.builtin.StackTrace, _: ?usize) noreturn {
         std.log.info("!                   DOUBLE PANIC                   !", .{});
         std.log.info("!--------------------------------------------------!", .{});
         std.log.info("\nError: {s}\n", .{msg});
-        system.assembly.halt();
+        sys.assembly.halt();
     }
 
     panicked = true;
@@ -162,5 +159,5 @@ pub fn panic(msg: []const u8, _: ?*std.builtin.StackTrace, _: ?usize) noreturn {
     debug.dumpStackTrace(@frameAddress());
 
     panicked = false;
-    system.assembly.halt();
+    sys.assembly.halt();
 }

@@ -24,7 +24,7 @@ const allocator = root.mem.heap.kernel_buddy_allocator;
 process_id: u32,
 name: []const u8,
 user: *auth.User,
-privilege: root.system.Privilege,
+privilege: root.lib.Privilege,
 
 // Tasks and related
 tasks: []?*Task,
@@ -40,14 +40,13 @@ pub fn create_task(s: *@This(), entry: TaskEntry, stack: ?[]u8, priority: u8) !*
     errdefer |err| log.debug("!!! Failed to create task: {s}", .{@errorName(err)});
 
     const tid: usize = b: {
-
         if (s.task_rover > s.tasks.len) try s.enlarge_task_list();
 
         for (0..3) |_| {
             var i = s.task_rover;
             while (i < s.tasks.len) : (i += 1)
                 if (s.tasks[i] == null) {
-                    s.task_rover = i+1;
+                    s.task_rover = i + 1;
                     break :b i;
                 };
             try s.enlarge_task_list();
@@ -101,9 +100,9 @@ pub fn create_task(s: *@This(), entry: TaskEntry, stack: ?[]u8, priority: u8) !*
 fn enlarge_task_list(s: *@This()) !void {
     errdefer |err| log.debug("Failed to enlarge task list: {s}", .{@errorName(err)});
 
-    const new_size = @max(1, s.tasks.len + (std.math.divCeil(usize,s.tasks.len, 2) catch unreachable));
+    const new_size = @max(1, s.tasks.len + (std.math.divCeil(usize, s.tasks.len, 2) catch unreachable));
     const new_list = try allocator.alloc(?*Task, new_size);
-    @memcpy(new_list[0 .. s.tasks.len], s.tasks[0..s.tasks.len]);
+    @memcpy(new_list[0..s.tasks.len], s.tasks[0..s.tasks.len]);
     @memset(new_list[s.tasks.len..new_size], null);
     allocator.free(s.tasks);
     s.tasks = new_list;

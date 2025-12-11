@@ -20,7 +20,7 @@ pub fn init() void {
     const kproc = allocator.create(threading.Process) catch @panic("OOM");
     kproc.* = threading.Process{
         .process_id = 0,
-        .name = "kernel",
+        .name = "system",
         .tasks = &.{},
         .user = auth.get_user_by_index(0).?, // 0 = Adam
         .privilege = .kernel,

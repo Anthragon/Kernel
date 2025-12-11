@@ -1,11 +1,11 @@
 const std = @import("std");
 const root = @import("root");
-const sys = root.system;
+const sys = @import("system");
 const debug = root.debug;
 
 const log = std.log.scoped(.interrupt);
 
-const TaskContext = root.system.TaskContext;
+const TaskContext = sys.threading.TaskContext;
 
 pub const InterruptHandler = *const fn (*TaskContext) void;
 pub var interrupts: [256]?InterruptHandler = [_]?InterruptHandler{null} ** 256;
@@ -35,7 +35,11 @@ pub fn allocate_vector() u8 {
     @panic("No interrupt vector availeable!");
 }
 
-pub fn set_vector(int: u8, func: ?InterruptHandler, privilege: sys.Privilege) void {
+pub fn set_vector(int: u8, func: ?InterruptHandler, privilege: root.lib.Privilege) void {
     interrupts[int] = func;
-    @import("../system/x86_64/interruptDescriptorTable.zig").set_privilege(int, privilege);
+    @import("system").interrupts.set_privilege(int, privilege);
 }
+
+pub const set_privilege = sys.interrupts.set_privilege;
+pub const mask_irq = sys.interrupts.mask_irq;
+pub const unmask_irq = sys.interrupts.unmask_irq;

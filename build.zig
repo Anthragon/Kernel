@@ -4,12 +4,10 @@ const Build = std.Build;
 const Target = std.Target;
 const Step = Build.Step;
 
-
 pub fn build(b: *std.Build) void {
-
     const target_arch = b.option(Target.Cpu.Arch, "tarch", "Target archtecture") orelse builtin.cpu.arch;
 
-    var core_target = Target.Query {
+    var core_target = Target.Query{
         .cpu_arch = target_arch,
         .os_tag = .freestanding,
         .abi = .none,
@@ -28,9 +26,8 @@ pub fn build(b: *std.Build) void {
             core_target.cpu_features_sub.addFeature(@intFromEnum(Feature.sse2));
             core_target.cpu_features_sub.addFeature(@intFromEnum(Feature.avx));
             core_target.cpu_features_sub.addFeature(@intFromEnum(Feature.avx2));
-            
-            core_target.cpu_features_add.addFeature(@intFromEnum(Feature.soft_float));
 
+            core_target.cpu_features_add.addFeature(@intFromEnum(Feature.soft_float));
         },
         .aarch64 => {
             const features = std.Target.aarch64.Feature;
@@ -38,7 +35,7 @@ pub fn build(b: *std.Build) void {
             core_target.cpu_features_sub.addFeature(@intFromEnum(features.crypto));
             core_target.cpu_features_sub.addFeature(@intFromEnum(features.neon));
         },
-        else => std.debug.panic("Unsuported archtecture {s}!", .{ @tagName(target_arch) })
+        else => std.debug.panic("Unsuported archtecture {s}!", .{@tagName(target_arch)}),
     }
 
     // Kernel library
@@ -55,15 +52,18 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
         .red_zone = false,
     });
-    
+
     kernel_mod.code_model = switch (target_arch) {
         .aarch64 => .small,
         .x86_64 => .kernel,
-        else => unreachable
+        else => unreachable,
     };
     kernel_mod.omit_frame_pointer = false;
     kernel_mod.strip = false;
     kernel_mod.single_threaded = true;
+
+    const target_system_impl = b.dependency("system", .{}).module("system");
+    kernel_mod.addImport("system", target_system_impl);
 
     // TODO add dependences dinamically
     const lumi_pci = b.dependency("lumiPCI", .{}).module("lumiPCI");
@@ -82,7 +82,6 @@ pub fn build(b: *std.Build) void {
     const kernel_exe = b.addExecutable(.{
         .name = "kernel",
         .root_module = kernel_mod,
-        .zig_lib_dir = undefined,
         .use_llvm = true,
     });
     kernel_exe.entry = .{ .symbol_name = "__boot_entry__" };
@@ -94,5 +93,4 @@ pub fn build(b: *std.Build) void {
 
     const install_kernel_step = b.addInstallArtifact(kernel_exe, .{});
     b.getInstallStep().dependOn(&install_kernel_step.step);
-
 }

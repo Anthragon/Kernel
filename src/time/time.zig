@@ -3,7 +3,7 @@
 
 const std = @import("std");
 const root = @import("root");
-const sys = root.system;
+const sys = @import("system");
 
 pub const Date = root.lib.common.time.Date;
 pub const Time = root.lib.common.time.Time;
@@ -13,10 +13,7 @@ const log = std.log.scoped(.time);
 
 const debug = root.debug;
 
-const internal = switch (sys.arch) {
-    .x86_64 => @import("../system/x86_64/time.zig"),
-    else => unreachable,
-};
+const internal = sys.time;
 
 var elapsed_ticks: usize = 0;
 
@@ -44,7 +41,7 @@ pub fn init() void {
 }
 
 /// Handles the timer interrupt
-fn timer_int(f: *sys.TaskContext) void {
+fn timer_int(f: *root.threading.TaskContext) void {
     elapsed_ticks += 1;
 
     // Check if timer conditions are reached

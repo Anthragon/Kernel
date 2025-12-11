@@ -1,11 +1,11 @@
 // TODO see a better place to put it (or not idk)
 const std = @import("std");
 const root = @import("root");
-const sys = root.system;
+const sys = @import("system");
 const debug = root.debug;
 const log = std.log.scoped(.main);
 
-const TaskContext = root.system.TaskContext;
+const TaskContext = sys.threading.TaskContext;
 const set_vector = root.interrupts.set_vector;
 
 pub fn install_system_interrupts() void {

@@ -10,6 +10,6 @@ pub fn init() void {
 
     log.debug(" ## Setting up devices service...", .{});
 
-    acpi.init();
+    acpi.init() catch |err| log.err("Error initializing ACPI: {s}", .{ @errorName(err) });
 
 }

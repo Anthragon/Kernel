@@ -1,8 +1,8 @@
 const std = @import("std");
 const root = @import("root");
 const vmm = @import("vmm.zig");
-const pmm = root.system.pmm;
-const paging = root.system.mem_paging;
+const pmm = @import("system").mem.pmm;
+const paging = root.mem.paging;
 
 const Alignment = std.mem.Alignment;
 

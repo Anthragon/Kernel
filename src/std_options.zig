@@ -1,13 +1,13 @@
 const std = @import("std");
+const sys = @import("system");
 const root = @import("root");
-const ports = @import("ports.zig");
 
-const serial = root.system.serial;
 const debug = root.debug;
+const serial = debug.serial;
 
-pub const options: std.Options = .{
-    .page_size_min = 4096,
-    .page_size_max = 4096,
+pub const options : std.Options = .{
+    .page_size_min = sys.std_options.page_size_min,
+    .page_size_max = sys.std_options.page_size_max,
 
     .enable_segfault_handler = false,
 
@@ -65,7 +65,7 @@ fn write_log_message(out: bool, err: bool, scr: bool, content: []const u8) void 
 var step_entropy: usize = 0;
 fn criptoRandomSeed(buffer: []u8) void {
     const timestamp = root.time.timestamp();
-    const io_entropy = ports.inb(0x40);
+    const io_entropy = 0; //ports.inb(0x40);
 
     var seed = timestamp ^ (@as(u64, io_entropy) << 56) ^ step_entropy;
 

@@ -1,8 +1,9 @@
 const std = @import("std");
 const builtin = @import("builtin");
+const system = @import("system");
 const root = @import("root");
-const paging = root.system.mem_paging;
-const pmm = root.system.pmm;
+const paging = root.mem.paging;
+const pmm = system.mem.pmm;
 const debug = root.debug;
 
 const log = std.log.scoped(.vmm);

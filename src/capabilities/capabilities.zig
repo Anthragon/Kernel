@@ -48,7 +48,7 @@ pub fn init() void {
     ) catch unreachable;
 
     { // Internal memory related
-        _ = create_callable(mem_node, "lsmemtable", root.system.pmm.lsmemtable) catch unreachable;
+        _ = create_callable(mem_node, "lsmemtable", root.mem.lsmemtable) catch unreachable;
     }
     _ = sys_node;
     _ = fs_node;
