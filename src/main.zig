@@ -13,8 +13,6 @@ pub const time = @import("time/time.zig");
 pub const basicgl = @import("basicgl/basicgl.zig");
 /// Galvan File System interface
 pub const fs = @import("fs/fs.zig");
-/// Devices management
-pub const devices = @import("devices/devices.zig");
 /// Users, authentication and permissions
 pub const auth = @import("auth/auth.zig");
 /// Processes, tasks and execution
@@ -79,13 +77,12 @@ pub fn main(_boot_info: BootInfo) noreturn {
     auth.init();
     time.init();
     modules.init();
-    devices.init();
     threading.init();
 
     log.debug(" # All services ready!", .{});
 
     log.debug("# Registring adam process and task...", .{});
-    
+
     // Setting up Adam process (process 0)
     const system_proc = threading.procman.get_process_from_pid(0).?;
     // Setting up Adam task

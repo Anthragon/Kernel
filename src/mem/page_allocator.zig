@@ -14,9 +14,9 @@ const log = std.log.scoped(.@"page allocator");
 /// though a simplier allocator
 pub const KernelPageAllocator = struct {
     pub fn alloc(size: usize, alignment: Alignment) ?[*]u8 {
-        log.debug("allocating {} pages", .{size});
-
         const vaddr = reserve(size, alignment);
+
+        log.debug("allocating {} pages in address {x}", .{ size, vaddr });
 
         for (0..size) |i| {
             const page = pmm.get_single_page(.kernel_heap);
