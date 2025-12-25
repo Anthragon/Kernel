@@ -178,7 +178,7 @@ fn run_all_devices_registered_callback(entry: OnDeviceRegisterEntry) void {
 
 fn lsdev() callconv(.c) void {
     log.warn("lsdev", .{});
-    log.info("Listing active devices:", .{});
+    log.info("Listing registered devices:", .{});
 
     for (devices_list.items, 0..) |dev, i| {
         if (dev == null) continue;
