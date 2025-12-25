@@ -32,7 +32,7 @@ pub fn init() void {
     fsroot.init();
 
     // getting capability resource node
-    fs_resource = root.capabilities.get_node_by_guid(root.utils.Guid.fromString("0d132c17-8f92-4861-a735-d78c753b73cf") catch unreachable).?;
+    fs_resource = root.capabilities.get_node("Fs").?;
 
     _ = root.capabilities.create_callable(fs_resource, "lsdir", @ptrCast(&lsdir)) catch unreachable;
     _ = root.capabilities.create_callable(fs_resource, "lsroot", @ptrCast(&lsroot)) catch unreachable;

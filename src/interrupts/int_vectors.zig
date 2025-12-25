@@ -1,4 +1,3 @@
-// TODO see a better place to put it (or not idk)
 const std = @import("std");
 const root = @import("root");
 const sys = @import("system");
@@ -21,6 +20,7 @@ pub fn install_system_interrupts() void {
 
     set_vector(0x0d, &general_protection_fault, .kernel);
     set_vector(0x0e, &page_fault, .kernel);
+    
 }
 
 fn division_error(frame: *TaskContext) void {

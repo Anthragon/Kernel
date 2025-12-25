@@ -36,8 +36,8 @@ pub fn init() void {
     // Creating virtual root node
     vfs_root = default_nodes.VirtualDirectory.init("root");
 
-    // Creating dev node
-    var fs_dev = default_nodes.VirtualDirectory.init("dev");
+    // Creating mount node
+    var fs_dev = default_nodes.VirtualDirectory.init("mount");
     _ = append(undefined, fs_dev.get_node());
 }
 

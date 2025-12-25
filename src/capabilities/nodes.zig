@@ -13,9 +13,9 @@ const NodeDataTags = enum {
     event,
 };
 pub const Node = struct {
-    guid: Guid,
     parent: ?*Node,
-    name: [*:0]const u8,
+    name: [:0]const u8,
+    global: [:0]const u8,
 
     data: union(NodeDataTags) {
         resource: Resource,
@@ -27,17 +27,27 @@ pub const Node = struct {
     pub fn create(
         allocator: std.mem.Allocator,
         parent: ?*Node,
-        guid: ?Guid,
         name: []const u8,
     ) !*Node {
-
         const instance = try allocator.create(Node);
         errdefer allocator.destroy(instance);
 
-        instance.name = try allocator.dupeZ(u8, name);
-        errdefer allocator.free(instance.name);
+        var global = brk: {
+            if (std.mem.indexOfSentinel(u8, 0, parent.?.global) == 0)
+                break :brk allocator.dupeZ(u8, name) catch root.oom_panic();
+
+            break :brk std.fmt.allocPrintSentinel(
+                allocator,
+                "{s}.{s}",
+                .{ parent.?.global, name },
+                0,
+            ) catch root.oom_panic();
+        };
+        errdefer allocator.free(global);
+
+        instance.global = global;
+        instance.name = global[(global.len - name.len)..];
         instance.parent = parent;
-        instance.guid = guid orelse Guid.new();
 
         return instance;
     }
@@ -52,7 +62,6 @@ pub const Node = struct {
         return s.branch_internal(&slice);
     }
     fn branch_internal(s: *@This(), iter: *std.mem.TokenIterator(u8, .any)) ?*Node {
-
         if (s.data != .resource) return null;
 
         const curr = iter.next() orelse return null;

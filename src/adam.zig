@@ -3,6 +3,7 @@ const root = @import("root");
 const lib = @import("lib");
 const threading = root.threading;
 const modules = root.modules;
+const devices = root.devices;
 const KernelError = root.interop.KernelError;
 
 const debug = root.debug;
@@ -165,6 +166,7 @@ pub fn _start(args: ?*anyopaque) callconv(.c) noreturn {
 fn _random_infodump() void {
     const lsblk: *const fn () callconv(.c) void = @ptrCast((root.capabilities.get_node("Devices.MassStorage.lsblk") orelse unreachable).data.callable);
     const lspci: *const fn () callconv(.c) void = @ptrCast((root.capabilities.get_node("Devices.PCI.lspci") orelse unreachable).data.callable);
+    const lsdev: *const fn () callconv(.c) void = @ptrCast((root.capabilities.get_node("Devices.lsdev") orelse unreachable).data.callable);
     const lsmemtbl: *const fn () callconv(.c) void = @ptrCast((root.capabilities.get_node("Memory.lsmemtable") orelse unreachable).data.callable);
 
     log.info("\nStage 2: Adam's debug info:\n", .{});
@@ -179,12 +181,6 @@ fn _random_infodump() void {
     modules.lsmodules();
 
     log.info("", .{});
-    lsblk();
-
-    log.info("", .{});
-    lspci();
-
-    log.info("", .{});
     root.capabilities.lscaps();
 
     log.info("", .{});
@@ -192,4 +188,15 @@ fn _random_infodump() void {
 
     log.info("", .{});
     root.fs.lsroot();
+
+    log.info("", .{});
+    lsblk();
+
+    log.info("", .{});
+    lspci();
+
+    log.info("", .{});
+    lsdev();
+    
+    log.info("", .{});
 }

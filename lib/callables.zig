@@ -10,6 +10,8 @@ pub const fs = .{
 };
 
 pub const device = .{
+    .on_registered_callback = *const fn (usize) void,
+
     .mass_storage = .{
         .get_disk_by_identifier = *const fn ([*:0]const u8) callconv(.c) ?*anyopaque,
         .get_disk_by_identifier_part_by_identifier = *const fn ([*:0]const u8, [*:0]const u8) callconv(.c) ?*anyopaque,

@@ -15,12 +15,16 @@ pub const basicgl = @import("basicgl/basicgl.zig");
 pub const fs = @import("fs/fs.zig");
 /// Users, authentication and permissions
 pub const auth = @import("auth/auth.zig");
+/// Devices service
+pub const devices = @import("devices/devices.zig");
 /// Processes, tasks and execution
 pub const threading = @import("threading/threading.zig");
 /// Modules and drivers management
 pub const modules = @import("modules/modules.zig");
 /// Capabilities system
 pub const capabilities = @import("capabilities/capabilities.zig");
+/// System calls
+pub const syscalls = @import("syscalls/syscalls.zig");
 /// Debug helper script
 pub const debug = @import("debug/debug.zig");
 
@@ -77,6 +81,8 @@ pub fn main(_boot_info: BootInfo) noreturn {
     auth.init();
     time.init();
     modules.init();
+    devices.init();
+    syscalls.init();
     threading.init();
 
     log.debug(" # All services ready!", .{});
