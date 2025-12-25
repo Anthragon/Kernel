@@ -70,11 +70,13 @@ pub fn build(b: *std.Build) void {
     const lumi_ahci = b.dependency("lumiAHCI", .{}).module("lumiAHCI");
     const lumi_disk = b.dependency("lumiDisk", .{}).module("lumiDisk");
     const lumi_fat = b.dependency("lumiFAT", .{}).module("lumiFAT");
+    const lumi_elf = b.dependency("lumiElf", .{}).module("lumiElfLoader");
 
     kernel_mod.addImport("lumiPCI_module", lumi_pci);
     kernel_mod.addImport("lumiAHCI_module", lumi_ahci);
     kernel_mod.addImport("lumiDisk_module", lumi_disk);
     kernel_mod.addImport("lumiFAT_module", lumi_fat);
+    kernel_mod.addImport("lumiElf_module", lumi_elf);
 
     kernel_mod.addImport("lib", kernel_lib);
 

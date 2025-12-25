@@ -19,6 +19,7 @@ const builtin_modules = .{
     @import("lumiDisk_module"),
     @import("lumiAHCI_module"),
     @import("lumiFAT_module"),
+    @import("lumiElf_module"),
 };
 
 pub fn _start(args: ?*anyopaque) callconv(.c) noreturn {
@@ -152,6 +153,21 @@ pub fn _start(args: ?*anyopaque) callconv(.c) noreturn {
     }
 
     _random_infodump();
+
+    log.info("Executing program \"bin/helloworld\"", .{});
+
+    const bin: ?lib.common.FsNode = root.fs.get_node("bin/helloworld").asbuiltin() catch |err| switch (err) {
+        KernelError.NotFound => null,
+        else => std.debug.panic("Error trying to read `bin/helloworld` file: {s}", .{@errorName(err)}),
+    };
+    if (bin) |exec| {
+        const file_content = exec.readAll(allocator) catch unreachable;
+        defer allocator.free(file_content);
+        exec.close();
+
+        log.info("binary length: {}", .{file_content.len});
+    }
+
     log.info("Entering in sleep mode... zzz\n", .{});
 
     // Adam should never return as it indicates
@@ -197,6 +213,6 @@ fn _random_infodump() void {
 
     log.info("", .{});
     lsdev();
-    
+
     log.info("", .{});
 }
