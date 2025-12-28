@@ -10,7 +10,8 @@
         .lumiAHCI = .{ .path = "../modules/lumiAHCI" },
         .lumiDisk = .{ .path = "../modules/lumiDisk" },
         .lumiFAT = .{ .path = "../modules/lumiFAT" },
-        .lumiElf = .{ .path = "../modules/lumiElfLoader" },
+        
+        .linkageTest = .{ .path = "../modules/linkageTest" },
     },
 
     .paths = .{

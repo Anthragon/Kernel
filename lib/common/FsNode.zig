@@ -122,6 +122,7 @@ pub const FsNode = extern struct {
         _ = try s.read(buf.ptr, buf.len).asbuiltin();
         return buf;
     }
+
 };
 
 pub const NodeIterator = extern struct {

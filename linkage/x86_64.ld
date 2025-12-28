@@ -24,10 +24,6 @@ SECTIONS {
         *(.ldata*)
     } : data
 
-    .data : ALIGN(4K) {
-        *(.data*)
-    } : tdata
-
     .bss : ALIGN(4K) {
         *(.bss*)
         *(.lbss*)
@@ -40,6 +36,14 @@ SECTIONS {
     .tbss : ALIGN(4K) {
         *(.tbss*)
     } : tbss
+
+    .kernel_modules : ALIGN(8)
+    {
+        __kernel_modules_start__ = .;
+        KEEP(*(.kernel_modules*))
+        KEEP(*(.kernel_modules.*))
+        __kernel_modules_end__ = .;
+    }
 
     __kernel_end__ = .;
 }

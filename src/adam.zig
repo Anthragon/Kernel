@@ -17,9 +17,7 @@ const allocator = root.mem.heap.kernel_buddy_allocator;
 const builtin_modules = .{
     @import("lumiPCI_module"),
     @import("lumiDisk_module"),
-    @import("lumiAHCI_module"),
     @import("lumiFAT_module"),
-    @import("lumiElf_module"),
 };
 
 pub fn _start(args: ?*anyopaque) callconv(.c) noreturn {
@@ -46,6 +44,16 @@ pub fn _start(args: ?*anyopaque) callconv(.c) noreturn {
             mod.init,
             mod.deinit,
         );
+    }
+
+    const modules_start: usize = @intFromPtr(@extern(*usize, .{ .name = "__kernel_modules_start__" }));
+    const modules_end: usize = @intFromPtr(@extern(*usize, .{ .name = "__kernel_modules_end__" }));
+    const modules_len = (modules_end - modules_start) / @sizeOf(lib.common.Module);
+    const modlist = @as([*]lib.common.Module, @ptrFromInt(modules_start))[0..modules_len];
+
+    log.info("{} built-in modules found (from {x} to {x})", .{ modlist.len, modules_start, modules_end });
+    for (modlist) |module| {
+        log.info("{}", .{module});
     }
 
     log.info("{} built in modules registred!", .{builtin_modules.len});
@@ -153,20 +161,6 @@ pub fn _start(args: ?*anyopaque) callconv(.c) noreturn {
     }
 
     _random_infodump();
-
-    log.info("Executing program \"bin/helloworld\"", .{});
-
-    const bin: ?lib.common.FsNode = root.fs.get_node("bin/helloworld").asbuiltin() catch |err| switch (err) {
-        KernelError.NotFound => null,
-        else => std.debug.panic("Error trying to read `bin/helloworld` file: {s}", .{@errorName(err)}),
-    };
-    if (bin) |exec| {
-        const file_content = exec.readAll(allocator) catch unreachable;
-        defer allocator.free(file_content);
-        exec.close();
-
-        log.info("binary length: {}", .{file_content.len});
-    }
 
     log.info("Entering in sleep mode... zzz\n", .{});
 

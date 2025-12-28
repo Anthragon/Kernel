@@ -6,6 +6,8 @@ pub const utils = @import("utils/utils.zig");
 pub const Toml = @import("toml/Toml.zig");
 
 pub const common = .{
+    .Module = @import("common/Module.zig").Module,
+
     .TaskGeneralFlags = @import("common/TaskGeneralFlags.zig"),
 
     .FileSystemEntry = @import("common/FileSystemEntry.zig").FileSystemEntry,
