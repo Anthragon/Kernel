@@ -1,10 +1,12 @@
 const root = @import("root");
 const Guid = root.utils.Guid;
 
-pub const BootInfo = struct {
+pub const BootInfo = extern struct {
     framebuffer: Framebuffer,
-    memory_map: []*MemoryMapEntry,
+    memory_map: [*]*MemoryMapEntry,
+    memory_map_len: usize,
 
+    boot_device_tag: BootDeviceTag,
     boot_device: BootDevice,
 
     kernel_stack_pointer_base: usize,
@@ -16,8 +18,9 @@ pub const BootInfo = struct {
     rsdp_physical: usize,
 };
 
-pub const Framebuffer = struct {
-    framebuffer: []u8,
+pub const Framebuffer = extern struct {
+    framebuffer: [*]u8,
+    buffer_length: usize,
     width: u64,
     height: u64,
     pps: u64,
@@ -40,13 +43,13 @@ pub const RegionType = enum(u64) {
     framebuffer = 7,
 };
 
-pub const BootDeviceTag = enum { mbr, gpt };
-pub const BootDevice = union(BootDeviceTag) {
-    mbr: struct {
+pub const BootDeviceTag = enum(usize) { mbr, gpt };
+pub const BootDevice = extern union {
+    mbr: extern struct {
         disk_id: usize,
         partition_index: usize,
     },
-    gpt: struct {
+    gpt: extern struct {
         disk_uuid: Guid,
         part_uuid: Guid,
     },

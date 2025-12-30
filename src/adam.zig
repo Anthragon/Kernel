@@ -53,7 +53,7 @@ pub fn _start(args: ?*anyopaque) callconv(.c) noreturn {
 
     log.info("{} built-in modules found (from {x} to {x})", .{ modlist.len, modules_start, modules_end });
     for (modlist) |module| {
-        log.info("{}", .{module});
+        log.info("{s} ver. {s} ({f})", .{ module.name, module.version, @as(root.utils.Guid, @bitCast(module.uuid)) });
     }
 
     log.info("{} built in modules registred!", .{builtin_modules.len});
@@ -84,9 +84,11 @@ pub fn _start(args: ?*anyopaque) callconv(.c) noreturn {
     // root.
 
     log.info("Mounting boot partition as root file system:", .{});
-    switch (boot_info.boot_device) {
-        .mbr => |_| @panic("Not implemented!"),
-        .gpt => |gpt| {
+    switch (boot_info.boot_device_tag) {
+        .mbr => @panic("Not implemented!"),
+        .gpt => {
+            const gpt = boot_info.boot_device.gpt;
+
             log.info("    Disk's uuid: {f}", .{gpt.disk_uuid});
             log.info("    Part's uuid: {f}", .{gpt.part_uuid});
 

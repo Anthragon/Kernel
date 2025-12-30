@@ -84,16 +84,7 @@ pub fn build(b: *std.Build) void {
         .root_module = kernel_mod,
         .use_llvm = true,
     });
-    kernel_exe.entry = .{ .symbol_name = "__boot_entry__" };
-    switch (target_arch) {
-        .aarch64 => kernel_exe.setLinkerScript(b.path("linkage/aarch64.ld")),
-        .x86_64 => kernel_exe.setLinkerScript(b.path("linkage/x86_64.ld")),
-        else => unreachable,
-    }
+    const kernel_install = b.addInstallArtifact(kernel_exe, .{});
 
-    const linktest = b.dependency("linkageTest", .{}).artifact("linkageTest");
-    kernel_exe.linkLibrary(linktest);
-
-    const install_kernel_step = b.addInstallArtifact(kernel_exe, .{});
-    b.getInstallStep().dependOn(&install_kernel_step.step);
+    b.default_step.dependOn(&kernel_install.step);
 }

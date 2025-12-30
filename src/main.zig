@@ -44,18 +44,13 @@ const log = std.log.scoped(.main);
 
 var boot_info: BootInfo = undefined;
 
-// linking entry point symbol
-comptime {
-    _ = @extern(?*fn () callconv(.c) noreturn, .{ .name = "__boot_entry__" }) orelse unreachable;
-}
-
-pub fn main(_boot_info: BootInfo) noreturn {
+export fn main(_boot_info: BootInfo) noreturn {
     boot_info = _boot_info;
     sys.assembly.flags.clear_interrupt();
 
     // Setting up basic text graphics mode
     basicgl.init(
-        boot_info.framebuffer.framebuffer,
+        boot_info.framebuffer.framebuffer[0..boot_info.framebuffer.buffer_length],
         boot_info.framebuffer.width,
         boot_info.framebuffer.height,
         boot_info.framebuffer.pps,
