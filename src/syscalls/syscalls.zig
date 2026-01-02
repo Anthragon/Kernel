@@ -7,6 +7,7 @@ const TaskContext = root.threading.TaskContext;
 
 const quickactions = @import("quickactions.zig");
 const proccessmanagement = @import("proccessmanagement.zig");
+const modulehelpers = @import("modulehelpers.zig");
 
 pub fn init() void {
     root.interrupts.set_vector(0x80, syscall_router, .user);
@@ -42,6 +43,12 @@ fn syscall_router(frame: *TaskContext) void {
             0x02 => proccessmanagement.signalize(frame),
             0x03 => proccessmanagement.wait(frame),
             0x04 => proccessmanagement.set_priority(frame),
+        },
+
+        0x0B => switch (func) {
+            else => undefined_syscall(group, func),
+
+            0x00 => modulehelpers.load_kernel_vtable(frame),
         },
     }
 }

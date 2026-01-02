@@ -8,8 +8,8 @@ pub const events = @import("event/event.zig");
 
 const NodeDataTags = enum {
     resource,
-    field,
     callable,
+    property,
     event,
 };
 pub const Node = struct {
@@ -19,8 +19,8 @@ pub const Node = struct {
 
     data: union(NodeDataTags) {
         resource: Resource,
-        field: Field,
         callable: Callable,
+        property: Property,
         event: Event,
     },
 
@@ -71,12 +71,26 @@ pub const Node = struct {
     }
 };
 
+
 const Resource = struct {
     children: std.StringArrayHashMapUnmanaged(*Node),
 };
 
-const Field = *anyopaque;
-
 const Callable = *const anyopaque;
 
-const Event = events.Event;
+const Property = *anyopaque;
+
+const Event = extern struct {
+    pub const EventOnBindCallback = *const fn (*const anyopaque, ?*anyopaque) callconv(.c) bool;
+    pub const EventOnUnbindCallback = *const fn (*const anyopaque) callconv(.c) void;
+
+    bind_callback: EventOnBindCallback,
+    unbind_callback: EventOnUnbindCallback,
+
+    pub fn bind(s: @This(), func: *const anyopaque, ctx: ?*anyopaque) callconv(.c) bool {
+        return s.bind_callback(func, ctx);
+    }
+    pub fn unbind(s: @This(), func: *const anyopaque) callconv(.c) void {
+        s.unbind_callback(func);
+    }
+};
