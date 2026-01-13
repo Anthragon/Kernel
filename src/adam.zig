@@ -14,12 +14,6 @@ const allocator = root.mem.heap.kernel_buddy_allocator;
 // Adam is a better term for the first father of all tasks
 // than root was! - Terry A. Davis
 
-const builtin_modules = .{
-    @import("lumiPCI_module"),
-    @import("lumiDisk_module"),
-    @import("lumiFAT_module"),
-};
-
 pub fn _start(args: ?*anyopaque) callconv(.c) noreturn {
     _ = args;
 
@@ -33,19 +27,6 @@ pub fn _start(args: ?*anyopaque) callconv(.c) noreturn {
     // necessary capabilities and resources to run in the
     // current environment.
 
-    inline for (builtin_modules) |mod| {
-        _ = modules.register_module(
-            mod.module_name,
-            mod.module_version,
-            mod.module_author,
-            mod.module_liscence,
-            mod.module_uuid,
-
-            mod.init,
-            mod.deinit,
-        );
-    }
-
     const modules_start: usize = @intFromPtr(@extern(*usize, .{ .name = "__kernel_modules_start__" }));
     const modules_end: usize = @intFromPtr(@extern(*usize, .{ .name = "__kernel_modules_end__" }));
     const modules_len = (modules_end - modules_start) / @sizeOf(lib.common.Module);
@@ -53,17 +34,20 @@ pub fn _start(args: ?*anyopaque) callconv(.c) noreturn {
 
     log.info("{} built-in modules found (from {x} to {x})", .{ modlist.len, modules_start, modules_end });
     for (modlist) |module| {
-        log.info("{s} ver. {s} ({f})", .{ module.name, module.version, @as(root.utils.Guid, @bitCast(module.uuid)) });
-    }
+        log.info("{s} ver. {s}", .{ module.name, module.version });
+        log.info("    Abi V.: {}", .{module.abi_ver});
+        log.info("    Author: {s}", .{module.author});
+        log.info("    Guid:   {f}", .{@as(root.utils.Guid, @bitCast(module.uuid))});
+        log.info("    Flags:  {c}", .{@as(u8, if (module.flags.needs_privilege) 'P' else '-')});
 
-    log.info("{} built in modules registred!", .{builtin_modules.len});
-    log.info("initializing {} build in modules...", .{builtin_modules.len});
+        modules.register_module(module).asbuiltin() catch unreachable;
+    }
 
     while (modules.has_waiting_modules()) {
         const module = modules.get_next_waiting_module().?;
         log.info("Initializing module {s}...", .{module.name});
 
-        const res = module.init();
+        const res = module.initialize();
 
         if (res) {
             log.debug("Module {s} initialized successfully!", .{module.name});

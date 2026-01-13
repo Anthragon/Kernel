@@ -21,6 +21,7 @@ pub const KernelPageAllocator = struct {
         for (0..size) |i| {
             const page = pmm.get_single_page(.kernel_heap);
             paging.map_single_page(
+                paging.get_current_map(),
                 pmm.physFromPtr(page),
                 vaddr + i * pmm.page_size,
                 10,

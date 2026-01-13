@@ -7,6 +7,12 @@ author: [:0]const u8,
 license: [:0]const u8,
 uuid: root.utils.Guid,
 
+abi_version: usize,
+flags: packed struct {
+    needs_privilege: bool,
+    _rsvd: u63 = 0,
+},
+
 init: *const fn () callconv(.c) bool,
 deinit: *const fn () callconv(.c) void,
 
@@ -19,3 +25,9 @@ pub const ModuleStatus = enum {
     Failed,
     Active,
 };
+
+pub fn initialize(self: *@This()) bool {
+    // initializes vtable and allocator
+    root.modules.resolve_module(self);
+    return self.init();
+}

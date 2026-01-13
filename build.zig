@@ -65,15 +65,6 @@ pub fn build(b: *std.Build) void {
     const target_system_impl = b.dependency("system", .{}).module("system");
     kernel_mod.addImport("system", target_system_impl);
 
-    // TODO add dependences dinamically
-    const lumi_pci = b.dependency("lumiPCI", .{}).module("lumiPCI");
-    const lumi_disk = b.dependency("lumiDisk", .{}).module("lumiDisk");
-    const lumi_fat = b.dependency("lumiFAT", .{}).module("lumiFAT");
-
-    kernel_mod.addImport("lumiPCI_module", lumi_pci);
-    kernel_mod.addImport("lumiDisk_module", lumi_disk);
-    kernel_mod.addImport("lumiFAT_module", lumi_fat);
-
     kernel_mod.addImport("lib", kernel_lib);
 
     // kernel executable

@@ -1,5 +1,6 @@
 const std = @import("std");
 const root = @import("root");
+const lib = @import("lib");
 const system = root.system;
 const debug = root.debug;
 const interop = root.interop;
@@ -32,24 +33,17 @@ pub inline fn get_module_by_uuid(uuid: Guid) ?*Module {
     return modules_map.getPtr(@bitCast(uuid));
 }
 
-pub fn register_module(
-    name: [*:0]const u8,
-    version: [*:0]const u8,
-    author: [*:0]const u8,
-    license: [*:0]const u8,
-    uuid: u128,
-    init_func: *const fn () callconv(.c) bool,
-    deinit_func: *const fn () callconv(.c) void,
-) callconv(.c) Result(void) {
+pub fn register_module(descriptor: lib.common.Module) callconv(.c) Result(void) {
     register_module_internal(
-        std.mem.sliceTo(name, 0),
-        std.mem.sliceTo(version, 0),
-        std.mem.sliceTo(author, 0),
-        std.mem.sliceTo(license, 0),
-        uuid,
-
-        init_func,
-        deinit_func,
+        std.mem.sliceTo(descriptor.name, 0),
+        std.mem.sliceTo(descriptor.version, 0),
+        std.mem.sliceTo(descriptor.author, 0),
+        std.mem.sliceTo(descriptor.license, 0),
+        @bitCast(descriptor.uuid),
+        descriptor.abi_ver,
+        @bitCast(descriptor.flags),
+        descriptor.init,
+        descriptor.deinit,
     ) catch |err| return switch (err) {
         error.ModuleAlreadyRegistered => .err(.nameAlreadyUsed),
         else => .err(.unexpected),
@@ -61,14 +55,16 @@ fn register_module_internal(
     version: [:0]const u8,
     author: [:0]const u8,
     license: [:0]const u8,
-    uuid: u128,
+    uuid: lib.utils.Guid,
+    abi_version: usize,
+    flags: usize,
     init_func: *const fn () callconv(.c) bool,
     deinit_func: *const fn () callconv(.c) void,
 ) !void {
 
     // Check if the module is already registered
-    if (modules_map.contains(uuid)) {
-        log.debug("Module '{s}' is already registered.", .{name});
+    if (modules_map.contains(@bitCast(uuid))) {
+        log.debug("Module '{s}' ({f}) is already registered.", .{ name, uuid });
         return error.ModuleAlreadyRegistered;
     }
 
@@ -86,7 +82,10 @@ fn register_module_internal(
         .version = vercopy,
         .author = autcopy,
         .license = liccopy,
-        .uuid = root.utils.Guid.fromInt(uuid),
+        .uuid = uuid,
+
+        .abi_version = abi_version,
+        .flags = @bitCast(flags),
 
         .init = init_func,
         .deinit = deinit_func,
@@ -94,10 +93,14 @@ fn register_module_internal(
         .allocator = .init(),
         .status = .Waiting,
     }) catch root.oom_panic();
-    unitialized_list.append(allocator, uuid) catch root.oom_panic();
+    unitialized_list.append(allocator, @bitCast(uuid)) catch root.oom_panic();
 
     // TODO some logic to wake up adam
 
+}
+
+pub fn resolve_module(module: *Module) void {
+    log.info("Resolving dependencies of module '{s}'", .{module.name});
 }
 
 pub inline fn has_waiting_modules() bool {

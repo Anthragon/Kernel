@@ -7,6 +7,6 @@ const TaskContext = root.threading.TaskContext;
 
 pub fn load_kernel_vtable(frame: *TaskContext) void {
     _ = frame;
-    log.info("Fuck return this shit now");
+    log.info("Fuck return this shit now", .{});
     unreachable;
 }

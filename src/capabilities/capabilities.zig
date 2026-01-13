@@ -8,7 +8,6 @@ const Result = interop.Result;
 
 const kernel_allocator = root.mem.heap.kernel_buddy_allocator;
 
-pub const Event = @import("event/event.zig").Event;
 pub const Node = nodes.Node;
 
 var capabilities_root: Node = .{
@@ -86,9 +85,9 @@ pub fn lscaps() void {
                     for (0..stack.items.len) |_| writer.writeAll("  ") catch unreachable;
                     writer.print("callable {s} -> ${x}\n", .{ current.node.name, @intFromPtr(c) }) catch unreachable;
                 },
-                .field => |f| {
+                .property => |f| {
                     for (0..stack.items.len) |_| writer.writeAll("  ") catch unreachable;
-                    writer.print("field    {s} -> ${x}\n", .{ current.node.name, @intFromPtr(f) }) catch unreachable;
+                    writer.print("property {s} -> ${x}\n", .{ current.node.name, @intFromPtr(f) }) catch unreachable;
                 },
                 .event => |e| {
                     for (0..stack.items.len) |_| writer.writeAll("  ") catch unreachable;
@@ -169,8 +168,8 @@ pub fn create_field_pointer(parent: ?*Node, name: []const u8, ptr: *anyopaque) !
 pub fn create_event(
     parent: ?*Node,
     name: []const u8,
-    bind: Event.EventOnBindCallback,
-    unbind: Event.EventOnUnbindCallback,
+    bind: nodes.Event.EventOnBindCallback,
+    unbind: nodes.Event.EventOnUnbindCallback,
 ) !*Node {
     const nn = try create_new_node(parent, name);
     nn.data = .{ .event = .{

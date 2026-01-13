@@ -18,6 +18,7 @@ pub const common = .{
 
     .time = @import("common/time.zig"),
 };
+pub const paging = @import("paging.zig");
 pub const boot = @import("common/boot.zig");
 
 pub const capabilities = @import("root").capabilities;

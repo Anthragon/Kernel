@@ -4,8 +4,6 @@ const Guid = root.utils.Guid;
 const interop = root.interop;
 const Result = interop.Result;
 
-pub const events = @import("event/event.zig");
-
 const NodeDataTags = enum {
     resource,
     callable,
@@ -71,7 +69,6 @@ pub const Node = struct {
     }
 };
 
-
 const Resource = struct {
     children: std.StringArrayHashMapUnmanaged(*Node),
 };
@@ -80,7 +77,7 @@ const Callable = *const anyopaque;
 
 const Property = *anyopaque;
 
-const Event = extern struct {
+pub const Event = extern struct {
     pub const EventOnBindCallback = *const fn (*const anyopaque, ?*anyopaque) callconv(.c) bool;
     pub const EventOnUnbindCallback = *const fn (*const anyopaque) callconv(.c) void;
 
