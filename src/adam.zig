@@ -35,10 +35,11 @@ pub fn _start(args: ?*anyopaque) callconv(.c) noreturn {
     log.info("{} built-in modules found (from {x} to {x})", .{ modlist.len, modules_start, modules_end });
     for (modlist) |module| {
         log.info("{s} ver. {s}", .{ module.name, module.version });
-        log.info("    Abi V.: {}", .{module.abi_ver});
         log.info("    Author: {s}", .{module.author});
         log.info("    Guid:   {f}", .{@as(root.utils.Guid, @bitCast(module.uuid))});
         log.info("    Flags:  {c}", .{@as(u8, if (module.flags.needs_privilege) 'P' else '-')});
+        log.info("    Init:   0x{x:0>16}", .{@intFromPtr(module.init)});
+        log.info("    Deinit: 0x{x:0>16}", .{@intFromPtr(module.deinit)});
 
         modules.register_module(module).asbuiltin() catch unreachable;
     }
@@ -46,7 +47,6 @@ pub fn _start(args: ?*anyopaque) callconv(.c) noreturn {
     while (modules.has_waiting_modules()) {
         const module = modules.get_next_waiting_module().?;
         log.info("Initializing module {s}...", .{module.name});
-
         const res = module.initialize();
 
         if (res) {

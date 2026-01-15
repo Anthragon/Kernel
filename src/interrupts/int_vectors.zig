@@ -20,7 +20,6 @@ pub fn install_system_interrupts() void {
 
     set_vector(0x0d, &general_protection_fault, .kernel);
     set_vector(0x0e, &page_fault, .kernel);
-    
 }
 
 fn division_error(frame: *TaskContext) void {
@@ -54,6 +53,7 @@ fn invalid_opcode(frame: *TaskContext) void {
                 @as(*u8, @ptrFromInt(frame.rip + 2)).*,
                 @as(*u8, @ptrFromInt(frame.rip + 3)).*,
             });
+            log.debug("(#UD) RIP: {X:0>16}", .{frame.rip});
         },
         else => unreachable,
     }

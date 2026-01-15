@@ -5,6 +5,7 @@ const system = root.system;
 const debug = root.debug;
 const interop = root.interop;
 const utils = root.utils;
+const module_helpers = @import("module_helpers.zig");
 
 const log = std.log.scoped(.modules);
 
@@ -19,6 +20,7 @@ var unitialized_list: std.ArrayListUnmanaged(u128) = .empty;
 
 pub fn init() void {
     log.debug(" ## Setting up modules service...", .{});
+    module_helpers.register_helpers();
 }
 
 pub fn lsmodules() void {
@@ -40,7 +42,6 @@ pub fn register_module(descriptor: lib.common.Module) callconv(.c) Result(void) 
         std.mem.sliceTo(descriptor.author, 0),
         std.mem.sliceTo(descriptor.license, 0),
         @bitCast(descriptor.uuid),
-        descriptor.abi_ver,
         @bitCast(descriptor.flags),
         descriptor.init,
         descriptor.deinit,
@@ -56,7 +57,6 @@ fn register_module_internal(
     author: [:0]const u8,
     license: [:0]const u8,
     uuid: lib.utils.Guid,
-    abi_version: usize,
     flags: usize,
     init_func: *const fn () callconv(.c) bool,
     deinit_func: *const fn () callconv(.c) void,
@@ -84,13 +84,12 @@ fn register_module_internal(
         .license = liccopy,
         .uuid = uuid,
 
-        .abi_version = abi_version,
         .flags = @bitCast(flags),
 
         .init = init_func,
         .deinit = deinit_func,
 
-        .allocator = .init(),
+        .allocator = undefined,
         .status = .Waiting,
     }) catch root.oom_panic();
     unitialized_list.append(allocator, @bitCast(uuid)) catch root.oom_panic();
@@ -101,6 +100,7 @@ fn register_module_internal(
 
 pub fn resolve_module(module: *Module) void {
     log.info("Resolving dependencies of module '{s}'", .{module.name});
+    module.allocator = .init(allocator);
 }
 
 pub inline fn has_waiting_modules() bool {

@@ -1,11 +1,12 @@
+const root = @import("../root.zig");
+
 pub const Module = extern struct {
     name: [*:0]const u8,
     version: [*:0]const u8,
     author: [*:0]const u8,
     license: [*:0]const u8,
-    uuid: u128,
+    uuid: root.utils.Guid,
 
-    abi_ver: usize,
     flags: packed struct {
         needs_privilege: bool,
         _rsvd: u63 = 0,

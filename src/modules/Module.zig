@@ -7,7 +7,6 @@ author: [:0]const u8,
 license: [:0]const u8,
 uuid: root.utils.Guid,
 
-abi_version: usize,
 flags: packed struct {
     needs_privilege: bool,
     _rsvd: u63 = 0,
@@ -16,7 +15,7 @@ flags: packed struct {
 init: *const fn () callconv(.c) bool,
 deinit: *const fn () callconv(.c) void,
 
-allocator: root.mem.vmm.BuddyAllocator,
+allocator: std.heap.ArenaAllocator,
 status: ModuleStatus,
 
 pub const ModuleStatus = enum {
@@ -27,7 +26,6 @@ pub const ModuleStatus = enum {
 };
 
 pub fn initialize(self: *@This()) bool {
-    // initializes vtable and allocator
     root.modules.resolve_module(self);
     return self.init();
 }

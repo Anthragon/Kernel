@@ -1,5 +1,5 @@
 const std = @import("std");
-const root = @import("root");
+const root = @import("../root.zig");
 const debug = root.debug;
 
 const interop = root.interop;
@@ -117,12 +117,11 @@ pub const FsNode = extern struct {
     }
     pub fn readAll(s: @This(), allocator: std.mem.Allocator) ![]const u8 {
         const size = s.get_size().unwrap() orelse return error.InternalError;
-        const buf = allocator.alloc(u8, size) catch root.oom_panic();
+        const buf = allocator.alloc(u8, size) catch @panic("OOM");
 
         _ = try s.read(buf.ptr, buf.len).asbuiltin();
         return buf;
     }
-
 };
 
 pub const NodeIterator = extern struct {
