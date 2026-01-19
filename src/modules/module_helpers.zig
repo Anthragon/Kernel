@@ -3,7 +3,6 @@ const root = @import("root");
 const modules = @import("modules.zig");
 
 const Guid = root.utils.Guid;
-const CapKind = root.lib.CapabilityKind;
 
 const log = std.log.scoped(.@"Module Helper");
 const module_log = std.log.scoped(.Module);
@@ -12,7 +11,9 @@ const allocator = root.mem.heap.kernel_buddy_allocator;
 const Alignment = std.mem.Alignment;
 
 comptime {
-    @export(&register_capability, .{ .name = "Anthragon:buildin_register_capability" });
+    @export(&root.capabilities.c__register_callable, .{ .name = "Anthragon:buildin_register_capability_callable" });
+    @export(&root.capabilities.c__register_property, .{ .name = "Anthragon:buildin_register_capability_property" });
+    @export(&root.capabilities.c__register_event, .{ .name = "Anthragon:buildin_register_capability_event" });
 
     @export(&m_panic, .{ .name = "cap privileged_callable [00000000-0000-0000-0000-000000000000]System.ModuleHelper::panic" });
 
@@ -28,19 +29,6 @@ comptime {
 }
 
 pub fn register_helpers() void {}
-
-pub fn register_capability(
-    module_uuid: Guid,
-    kind: CapKind,
-    namespace: [*:0]const u8,
-    symbol: [*:0]const u8,
-    pointer: *const anyopaque,
-) callconv(.c) void {
-    log.info(
-        "Module {f} tried to register capability {s} with symbol {s}::{s} to 0x{x:0>16}!",
-        .{ module_uuid, namespace, @tagName(kind), symbol, @intFromPtr(pointer) },
-    );
-}
 
 fn m_panic(module_uuid: Guid, message: [*:0]const u8) callconv(.c) noreturn {
     std.debug.panic("Module {f} panic: {s}", .{ module_uuid, message });

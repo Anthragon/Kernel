@@ -95,7 +95,6 @@ fn register_module_internal(
     unitialized_list.append(allocator, @bitCast(uuid)) catch root.oom_panic();
 
     // TODO some logic to wake up adam
-
 }
 
 pub fn resolve_module(module: *Module) void {

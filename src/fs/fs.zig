@@ -13,13 +13,12 @@ pub const PartEntry = lib.common.PartEntry;
 pub const FsNode = lib.common.FsNode;
 
 pub const default_nodes = @import("default_nodes.zig");
+pub const Guid = lib.utils.Guid;
 pub const Result = interop.Result;
 pub const KernelError = interop.KernelError;
 
 var arena: std.heap.ArenaAllocator = undefined;
 var allocator: std.mem.Allocator = undefined;
-
-var fs_resource: *root.capabilities.Node = undefined;
 
 var fileSystems: std.StringArrayHashMapUnmanaged(*FileSystemEntry) = .empty;
 
@@ -32,19 +31,14 @@ pub fn init() void {
     fsroot.init();
 
     // getting capability resource node
-    fs_resource = root.capabilities.get_node("Fs").?;
-
-    _ = root.capabilities.create_callable(fs_resource, "lsdir", @ptrCast(&lsdir)) catch unreachable;
-    _ = root.capabilities.create_callable(fs_resource, "lsroot", @ptrCast(&lsroot)) catch unreachable;
-
-    _ = root.capabilities.create_callable(fs_resource, "chroot", @ptrCast(&chroot)) catch unreachable;
-
-    _ = root.capabilities.create_callable(fs_resource, "append_file_system", @ptrCast(&append_file_system)) catch unreachable;
-    _ = root.capabilities.create_callable(fs_resource, "remove_file_system", @ptrCast(&remove_file_system)) catch unreachable;
-
-    _ = root.capabilities.create_callable(fs_resource, "mount_disk", @ptrCast(&mount_disk)) catch unreachable;
-    _ = root.capabilities.create_callable(fs_resource, "mount_part", @ptrCast(&mount_part)) catch unreachable;
-    _ = root.capabilities.create_callable(fs_resource, "mount_disk_by_identifier_part_by_identifier", @ptrCast(&mount_disk_by_identifier_part_by_identifier)) catch unreachable;
+    root.capabilities.register_callable(Guid.zero(), "Fs", "lsdir", @ptrCast(&lsdir)) catch unreachable;
+    root.capabilities.register_callable(Guid.zero(), "Fs", "lsroot", @ptrCast(&lsroot)) catch unreachable;
+    root.capabilities.register_callable(Guid.zero(), "Fs", "chroot", @ptrCast(&chroot)) catch unreachable;
+    root.capabilities.register_callable(Guid.zero(), "Fs", "append_file_system", @ptrCast(&append_file_system)) catch unreachable;
+    root.capabilities.register_callable(Guid.zero(), "Fs", "remove_file_system", @ptrCast(&remove_file_system)) catch unreachable;
+    root.capabilities.register_callable(Guid.zero(), "Fs", "mount_disk", @ptrCast(&mount_disk)) catch unreachable;
+    root.capabilities.register_callable(Guid.zero(), "Fs", "mount_part", @ptrCast(&mount_part)) catch unreachable;
+    root.capabilities.register_callable(Guid.zero(), "Fs", "mount_disk_by_identifier_part_by_identifier", @ptrCast(&mount_disk_by_identifier_part_by_identifier)) catch unreachable;
 }
 
 pub inline fn get_fs_allocator() std.mem.Allocator {
@@ -94,7 +88,7 @@ pub fn mount_disk_by_identifier_part_by_identifier(disk: [*:0]const u8, part: [*
     log.debug("mount requested - {s} : {s}", .{ disk, part });
 
     const getdbipbi: *const fn ([*:0]const u8, [*:0]const u8) callconv(.c) ?*lib.common.PartEntry =
-        @ptrCast(@alignCast((root.capabilities.get_node("Devices.MassStorage.get_disk_by_identifier_part_by_identifier") orelse @panic("Callable not found!")).data.callable));
+        @ptrCast(@alignCast((root.capabilities.get_callable("Devices.MassStorage::get_disk_by_identifier_part_by_identifier") catch @panic("Not a callable") orelse @panic("Callable not found!"))));
 
     const entry = getdbipbi(disk, part) orelse @panic("Trying to mount a null partition entry!");
     return mount_part(entry);

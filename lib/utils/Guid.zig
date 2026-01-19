@@ -38,6 +38,27 @@ pub const Guid = packed struct {
         if (j != 16) return error.InvalidFormat;
         return fromSlice(&buf);
     }
+    pub fn fromComptimeString(comptime str: []const u8) Guid {
+        var buf: [16]u8 = undefined;
+        const len = str.len;
+        if (len != 36) @panic("Invalid format");
+
+        var i: usize = 0;
+        var j: usize = 0;
+        while (i < len) {
+            if (str[i] == '-') {
+                i += 1;
+                continue;
+            }
+            if (i + 1 >= len or j >= 16) @panic("Invalid format");
+            const b = try std.fmt.parseInt(u8, str[i .. i + 2], 16);
+            buf[j] = b;
+            i += 2;
+            j += 1;
+        }
+        if (j != 16) @panic("Invalid format");
+        return fromSlice(&buf);
+    }
 
     /// format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
     pub fn format(s: *const @This(), fmt: anytype) !void {

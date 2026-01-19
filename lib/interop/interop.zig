@@ -40,8 +40,8 @@ pub fn Result(T: type) type {
         pub fn asbuiltin(s: @This()) KernelError!T {
             return if (s.isok()) s.value else errorFromEnum(s.@"error");
         }
-        pub fn frombuiltin(s: KernelError!T) Result(T) {
-            return .val(s catch |e| return .err(enumFromError(e)));
+        pub fn frombuiltin(s: anyerror!T) Result(T) {
+            return .val(s catch |e| return .err(enumFromError(@errorCast(e))));
         }
     };
 }

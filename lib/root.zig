@@ -21,14 +21,4 @@ pub const common = .{
 pub const paging = @import("paging.zig");
 pub const boot = @import("common/boot.zig");
 
-pub const CapabilityKind = enum(usize) {
-    Callable,
-
-    PropertyGetter,
-    PropertySetter,
-
-    EventBind,
-    EventUnbind,
-};
-
 pub const callables = @import("callables.zig");

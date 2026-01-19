@@ -1,6 +1,5 @@
 const std = @import("std");
 const root = @import("root");
-const nodes = @import("nodes.zig");
 const interop = root.interop;
 
 const Guid = root.utils.Guid;
@@ -8,51 +7,63 @@ const Result = interop.Result;
 
 const kernel_allocator = root.mem.heap.kernel_buddy_allocator;
 
-pub const Node = nodes.Node;
+pub const Callable = *const anyopaque;
+pub const Event = extern struct {
+    pub const EventOnBindCallback = *const fn (*const anyopaque, ?*anyopaque) callconv(.c) bool;
+    pub const EventOnUnbindCallback = *const fn (*const anyopaque) callconv(.c) void;
 
-var capabilities_root: Node = .{
-    .name = "root",
-    .global = "",
-    .parent = null,
-    .data = .{ .resource = .{ .children = .empty } },
+    bind_callback: EventOnBindCallback,
+    unbind_callback: EventOnUnbindCallback,
+
+    pub fn bind(s: @This(), func: *const anyopaque, ctx: ?*anyopaque) callconv(.c) bool {
+        return s.bind_callback(func, ctx);
+    }
+    pub fn unbind(s: @This(), func: *const anyopaque) callconv(.c) void {
+        s.unbind_callback(func);
+    }
 };
-var capabilities_all: std.StringArrayHashMapUnmanaged(*Node) = .empty;
+pub const Property = struct {
+    pub const PropertyGetterCallback = *const fn (?*const anyopaque) callconv(.c) usize;
+    pub const PropertySetterCallback = *const fn (?*const anyopaque, usize) callconv(.c) void;
+
+    getter_callback: PropertyGetterCallback,
+    setter_callback: PropertySetterCallback,
+};
+
+pub const CapKind = enum { callable, property, event };
+const CapData = struct {
+    module_guid: Guid,
+
+    full_identifier: [:0]const u8,
+    namespace: []const u8,
+    symbol: []const u8,
+
+    data: union(CapKind) {
+        callable: Callable,
+        property: Property,
+        event: Event,
+    },
+};
 
 var arena: std.heap.ArenaAllocator = undefined;
 var allocator: std.mem.Allocator = undefined;
 
 const log = std.log.scoped(.capabilities);
 
+var capabilities_map: std.StringArrayHashMapUnmanaged(CapData) = .empty;
+
 pub fn init() void {
     arena = .init(kernel_allocator);
     allocator = arena.allocator();
 
-    const sys_node = create_resource(
-        null,
-        "System",
-    ) catch unreachable;
-
-    const fs_node = create_resource(
-        null,
-        "Fs",
-    ) catch unreachable;
-
-    const mem_node = create_resource(
-        null,
-        "Memory",
-    ) catch unreachable;
-
-    const dev_node = create_resource(
-        null,
-        "Devices",
-    ) catch unreachable;
-
     { // Internal memory related
-        _ = create_callable(mem_node, "lsmemtable", root.mem.lsmemtable) catch unreachable;
+        register_callable(
+            Guid.zero(),
+            "Memory",
+            "lsmemtable",
+            root.mem.lsmemtable,
+        ) catch |err| std.debug.panic("{s}", .{@errorName(err)});
     }
-    _ = sys_node;
-    _ = fs_node;
-    _ = dev_node;
 }
 
 pub fn lscaps() void {
@@ -62,119 +73,173 @@ pub fn lscaps() void {
 
     var writer = buf.writer(allocator);
 
-    const StackItem = struct {
-        node: *Node,
-        index: usize = 0,
-        wrote: bool = false,
-    };
-    var stack: std.ArrayList(StackItem) = .empty;
-    defer stack.deinit(allocator);
-
-    stack.append(allocator, .{ .node = &capabilities_root }) catch root.oom_panic();
-
-    while (stack.items.len > 0) {
-        var current = &stack.items[stack.items.len - 1];
-
-        if (!current.wrote) {
-            switch (current.node.data) {
-                .resource => |_| {
-                    for (0..stack.items.len) |_| writer.writeAll("  ") catch unreachable;
-                    writer.print("{s} {{\n", .{current.node.name}) catch unreachable;
-                },
-                .callable => |c| {
-                    for (0..stack.items.len) |_| writer.writeAll("  ") catch unreachable;
-                    writer.print("callable {s} -> ${x}\n", .{ current.node.name, @intFromPtr(c) }) catch unreachable;
-                },
-                .property => |f| {
-                    for (0..stack.items.len) |_| writer.writeAll("  ") catch unreachable;
-                    writer.print("property {s} -> ${x}\n", .{ current.node.name, @intFromPtr(f) }) catch unreachable;
-                },
-                .event => |e| {
-                    for (0..stack.items.len) |_| writer.writeAll("  ") catch unreachable;
-                    writer.print("event    {s} -> ${x}, ${x}\n", .{ current.node.name, @intFromPtr(e.bind_callback), @intFromPtr(e.unbind_callback) }) catch unreachable;
-                },
-            }
-            current.wrote = true;
+    for (capabilities_map.values()) |v| {
+        switch (v.data) {
+            .callable => |c| writer.print(
+                "[{f}] C {s: <50} -> 0x{x:0>16}\n",
+                .{ v.module_guid, v.full_identifier, @intFromPtr(c) },
+            ) catch root.oom_panic(),
+            .property => |c| writer.print(
+                "[{f}] P {s: <50} -> {{ get = 0x{x:0>16}, set = 0x{x:0>16} }}\n",
+                .{ v.module_guid, v.full_identifier, @intFromPtr(c.getter_callback), @intFromPtr(c.setter_callback) },
+            ) catch root.oom_panic(),
+            .event => |c| writer.print(
+                "[{f}] E {s: <50} -> {{ bind = 0x{x:0>16}, unbind = 0x{x:0>16} }}\n",
+                .{ v.module_guid, v.full_identifier, @intFromPtr(c.bind_callback), @intFromPtr(c.unbind_callback) },
+            ) catch root.oom_panic(),
         }
-
-        if (current.node.data == .resource) {
-            if (current.index == current.node.data.resource.children.count()) {
-                _ = stack.pop();
-                for (0..stack.items.len + 1) |_| writer.writeAll("  ") catch unreachable;
-                writer.writeAll("}\n") catch unreachable;
-                continue;
-            }
-
-            stack.append(allocator, .{ .node = current.node.data.resource.children.values()[current.index] }) catch root.oom_panic();
-            current.index += 1;
-            continue;
-        }
-        _ = stack.pop();
     }
 
     log.info("{s}", .{buf.items});
 }
 
-/// Provides a zig interface for retrieving a node tough its path
-pub fn get_node(path: []const u8) ?*Node {
-    return capabilities_all.get(path);
-}
-/// Returns a node by its path
-pub fn c__get_node(path: [*:0]const u8) callconv(.c) ?*Node {
-    return get_node(std.mem.sliceTo(path, 0));
-}
-
-/// Returns the capabilities root
-pub fn get_root() callconv(.c) *Node {
-    return &capabilities_root;
-}
-
-/// Generic node creation
-fn create_new_node(parent: ?*Node, name: []const u8) !*Node {
-    const real_parent: *Node = parent orelse &capabilities_root;
-
-    if (real_parent.data != .resource) return error.ParentIsNotResource;
-    if (real_parent.data.resource.children.contains(name)) return error.NodeNameAlreadyExists;
-
-    for (name) |c| if (!std.ascii.isAlphanumeric(c) and c != '_') return error.InvalidNameIdentifier;
-
-    const nn = Node.create(allocator, real_parent, name) catch root.oom_panic();
-
-    real_parent.data.resource.children.put(allocator, nn.name, nn) catch root.oom_panic();
-    capabilities_all.put(allocator, nn.global, nn) catch root.oom_panic();
-
-    return nn;
-}
-
-/// Provides a zig interface for creating a new resource in the capabilities tree
-pub fn create_resource(parent: ?*Node, name: []const u8) !*Node {
-    const nn = try create_new_node(parent, name);
-    nn.data = .{ .resource = .{ .children = .empty } };
-    return nn;
+pub fn c__register_callable(
+    module_uuid: Guid,
+    namespace: [*:0]const u8,
+    symbol: [*:0]const u8,
+    callback: *const anyopaque,
+) callconv(.c) Result(void) {
+    return .frombuiltin(register_callable(
+        module_uuid,
+        std.mem.sliceTo(namespace, 0),
+        std.mem.sliceTo(symbol, 0),
+        callback,
+    ));
 }
 /// Provides a zig interface for creating a new callable in the capabilities tree
-pub fn create_callable(parent: ?*Node, name: []const u8, callable: *const anyopaque) !*Node {
-    const nn = try create_new_node(parent, name);
-    nn.data = .{ .callable = callable };
-    return nn;
+pub fn register_callable(
+    module_uuid: Guid,
+    namespace: []const u8,
+    symbol: []const u8,
+    callback: *const anyopaque,
+) !void {
+    const full_name_dup = try std.fmt.allocPrintSentinel(
+        allocator,
+        "{s}::{s}",
+        .{ namespace, symbol },
+        0,
+    );
+    errdefer allocator.free(full_name_dup);
+    const nmsp_dup = full_name_dup[0..namespace.len];
+    const symb_dup = full_name_dup[namespace.len + 2 .. full_name_dup.len];
+
+    if (capabilities_map.contains(full_name_dup)) return error.alreadyExists;
+
+    try capabilities_map.put(allocator, full_name_dup, .{
+        .module_guid = module_uuid,
+        .full_identifier = full_name_dup,
+        .namespace = nmsp_dup,
+        .symbol = symb_dup,
+        .data = .{ .callable = callback },
+    });
+}
+
+pub fn c__register_property(
+    module_uuid: Guid,
+    namespace: [*:0]const u8,
+    symbol: [*:0]const u8,
+    getter: Property.PropertyGetterCallback,
+    setter: Property.PropertySetterCallback,
+) callconv(.c) Result(void) {
+    return .frombuiltin(register_property(
+        module_uuid,
+        std.mem.sliceTo(namespace, 0),
+        std.mem.sliceTo(symbol, 0),
+        getter,
+        setter,
+    ));
 }
 /// Provides a zig interface for creating a new field pointer in the capabilities tree
-pub fn create_field_pointer(parent: ?*Node, name: []const u8, ptr: *anyopaque) !*Node {
-    const nn = try create_new_node(.zero(), parent, name);
-    nn.data = .{ .field = ptr };
-    return nn;
+pub fn register_property(
+    module_uuid: Guid,
+    namespace: []const u8,
+    symbol: []const u8,
+    getter: Property.PropertyGetterCallback,
+    setter: Property.PropertySetterCallback,
+) !void {
+    const full_name_dup = try std.fmt.allocPrintSentinel(
+        allocator,
+        "{s}::{s}",
+        .{ namespace, symbol },
+        0,
+    );
+    errdefer allocator.free(full_name_dup);
+    const nmsp_dup = full_name_dup[0..namespace.len];
+    const symb_dup = full_name_dup[namespace.len + 2 .. full_name_dup.len];
+
+    if (capabilities_map.contains(full_name_dup)) return error.AlreadyExists;
+
+    try capabilities_map.put(allocator, full_name_dup, .{
+        .module_guid = module_uuid,
+        .full_identifier = full_name_dup,
+        .namespace = nmsp_dup,
+        .symbol = symb_dup,
+        .data = .{ .property = .{
+            .getter_callback = getter,
+            .setter_callback = setter,
+        } },
+    });
+}
+
+pub fn c__register_event(
+    module_uuid: Guid,
+    namespace: [*:0]const u8,
+    symbol: [*:0]const u8,
+    bind: Event.EventOnBindCallback,
+    unbind: Event.EventOnUnbindCallback,
+) callconv(.c) Result(void) {
+    return .frombuiltin(register_event(
+        module_uuid,
+        std.mem.sliceTo(namespace, 0),
+        std.mem.sliceTo(symbol, 0),
+        bind,
+        unbind,
+    ));
 }
 // Provides a zig interface for creating a new event in the capabilities tree
-pub fn create_event(
-    parent: ?*Node,
-    name: []const u8,
-    bind: nodes.Event.EventOnBindCallback,
-    unbind: nodes.Event.EventOnUnbindCallback,
-) !*Node {
-    const nn = try create_new_node(parent, name);
-    nn.data = .{ .event = .{
-        .bind_callback = bind,
-        .unbind_callback = unbind,
-    } };
-    return nn;
+pub fn register_event(
+    module_uuid: Guid,
+    namespace: []const u8,
+    symbol: []const u8,
+    bind: Event.EventOnBindCallback,
+    unbind: Event.EventOnUnbindCallback,
+) !void {
+    const full_name_dup = try std.fmt.allocPrintSentinel(
+        allocator,
+        "{s}::{s}",
+        .{ namespace, symbol },
+        0,
+    );
+    errdefer allocator.free(full_name_dup);
+    const nmsp_dup = full_name_dup[0..namespace.len];
+    const symb_dup = full_name_dup[namespace.len + 2 .. full_name_dup.len];
+
+    if (capabilities_map.contains(full_name_dup)) return error.AlreadyExists;
+
+    try capabilities_map.put(allocator, full_name_dup, .{
+        .module_guid = module_uuid,
+        .full_identifier = full_name_dup,
+        .namespace = nmsp_dup,
+        .symbol = symb_dup,
+        .data = .{ .event = .{
+            .bind_callback = bind,
+            .unbind_callback = unbind,
+        } },
+    });
+}
+
+pub fn get_callable(full_name: []const u8) !?Callable {
+    const a = capabilities_map.get(full_name) orelse return null;
+    if (a.data != .callable) return error.wrongType;
+    return a.data.callable;
+}
+pub fn get_property(full_name: []const u8) ?Property {
+    const a = capabilities_map.get(full_name) orelse return null;
+    if (a.data != .property) return error.wrongType;
+    return a.data.property;
+}
+pub fn get_event(full_name: []const u8) ?Event {
+    const a = capabilities_map.get(full_name) orelse return null;
+    if (a.data != .event) return error.wrongType;
+    return a.data.event;
 }

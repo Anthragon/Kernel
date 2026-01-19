@@ -15,7 +15,6 @@ var arena: std.heap.ArenaAllocator = undefined;
 var allocator: std.mem.Allocator = undefined;
 
 var devices_list: std.ArrayListUnmanaged(?*Device) = .empty;
-var devices_res: *root.capabilities.Node = undefined;
 
 const OnDeviceRegisterEntryCtx = extern struct {
     guid: Guid,
@@ -37,54 +36,19 @@ pub fn init() void {
     arena = .init(root.mem.heap.kernel_buddy_allocator);
     allocator = arena.allocator();
 
-    devices_res = root.capabilities.get_node("Devices").?;
+    _ = root.capabilities.register_callable(Guid.zero(), "Devices", "lsdev", @ptrCast(&lsdev)) catch unreachable;
+    //_ = root.capabilities.create_callable(devices_res, "register_device", @ptrCast(&c__register_device)) catch unreachable;
+    //_ = root.capabilities.create_callable(devices_res, "remove_device", @ptrCast(&c__remove_device)) catch unreachable;
+    //_ = root.capabilities.create_callable(devices_res, "set_status", @ptrCast(&c__set_status)) catch unreachable;
 
-    _ = root.capabilities.create_callable(devices_res, "lsdev", @ptrCast(&lsdev)) catch unreachable;
-    _ = root.capabilities.create_callable(devices_res, "register_device", @ptrCast(&c__register_device)) catch unreachable;
-    _ = root.capabilities.create_callable(devices_res, "remove_device", @ptrCast(&c__remove_device)) catch unreachable;
-    _ = root.capabilities.create_callable(devices_res, "set_status", @ptrCast(&c__set_status)) catch unreachable;
-
-    _ = root.capabilities.create_event(devices_res, "on_device_registered", on_device_registered_bind, on_pci_device_probe_unbind) catch unreachable;
-
-}
-
-fn c__register_device(
-    devname: [*:0]const u8,
-    identifier: u128,
-    subclass: usize,
-    canSee: usize,
-    canRead: usize,
-    canControl: usize,
-) callconv(.c) Result(usize) {
-    return .val(register_device(
-        std.mem.sliceTo(devname, 0),
-        @bitCast(identifier),
-        subclass,
-        @enumFromInt(@as(u1, @truncate(canSee))),
-        @enumFromInt(@as(u1, @truncate(canRead))),
-        @enumFromInt(@as(u1, @truncate(canControl))),
-    ) catch |err| switch (err) {
-        .DoesNotExist => return .err(.notFound),
-        else => return .err(.unexpected),
-    });
-}
-fn c__remove_device(dev: usize) callconv(.c) Result(void) {
-    remove_device(dev) catch |err| switch (err) {
-        error.DoesNotExist => return .err(.notFound),
-    };
-
-    return .retvoid();
-}
-fn c__set_status(dev: usize, status: usize) callconv(.c) Result(void) {
-    return .val(set_status(dev, @enumFromInt(status)) catch |err| switch (err) {
-        error.DoesNotExist => return .err(.notFound),
-    });
+    //_ = root.capabilities.create_event(devices_res, "on_device_registered", on_device_registered_bind, on_pci_device_probe_unbind) catch unreachable;
 }
 
 fn register_device(
     devname: []const u8,
     identifier: Guid,
-    subclass: usize,
+    specifier: usize,
+    interface: Guid,
     canSee: root.lib.Privilege,
     canRead: root.lib.Privilege,
     canControl: root.lib.Privilege,
@@ -98,7 +62,8 @@ fn register_device(
     dev.* = .{
         .name = nameclone,
         .identifier = identifier,
-        .subclass = subclass,
+        .specifier = specifier,
+        .interface = interface,
         .status = .unbinded,
         .canSee = canSee,
         .canRead = canRead,
@@ -176,7 +141,7 @@ fn run_all_devices_registered_callback(entry: OnDeviceRegisterEntry) void {
     }
 }
 
-fn lsdev() callconv(.c) void {
+pub fn lsdev() callconv(.c) void {
     log.warn("lsdev", .{});
     log.info("Listing registered devices:", .{});
 

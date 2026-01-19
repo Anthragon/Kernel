@@ -10,6 +10,7 @@ const debug = root.debug;
 const log = std.log.scoped(.adam);
 
 const allocator = root.mem.heap.kernel_buddy_allocator;
+var boot_info: lib.boot.BootInfo = undefined;
 
 // Adam is a better term for the first father of all tasks
 // than root was! - Terry A. Davis
@@ -17,7 +18,7 @@ const allocator = root.mem.heap.kernel_buddy_allocator;
 pub fn _start(args: ?*anyopaque) callconv(.c) noreturn {
     _ = args;
 
-    const boot_info = root.get_boot_info();
+    boot_info = root.get_boot_info();
 
     log.info("\nHello, Adam!", .{});
 
@@ -59,6 +60,24 @@ pub fn _start(args: ?*anyopaque) callconv(.c) noreturn {
 
         log.info("Initialization done; Module {s} status: {s}", .{ module.name, @tagName(module.status) });
     }
+    log.info("All builtin modules initialized", .{});
+
+    //setup_filesystem();
+
+    _random_infodump();
+
+    log.info("Entering in sleep mode... zzz\n", .{});
+
+    // Adam should never return as it indicates
+    // that the system is alive
+    // TODO implement a proper sleep function
+    // that will allow the system to enter a low power state
+    // and wake up on an event
+    while (true) {}
+    unreachable;
+}
+
+fn setup_filesystem() void {
 
     // # Mounting the boot partition as rootfs
     // the boot partition is used as rootfs if no other
@@ -145,30 +164,17 @@ pub fn _start(args: ?*anyopaque) callconv(.c) noreturn {
 
         root.auth.load_users_config("sys/users.toml", toml);
     }
-
-    _random_infodump();
-
-    log.info("Entering in sleep mode... zzz\n", .{});
-
-    // Adam should never return as it indicates
-    // that the system is alive
-    // TODO implement a proper sleep function
-    // that will allow the system to enter a low power state
-    // and wake up on an event
-    while (true) {}
-    unreachable;
 }
 
 fn _random_infodump() void {
-    const lsblk: *const fn () callconv(.c) void = @ptrCast((root.capabilities.get_node("Devices.MassStorage.lsblk") orelse unreachable).data.callable);
-    const lspci: *const fn () callconv(.c) void = @ptrCast((root.capabilities.get_node("Devices.PCI.lspci") orelse unreachable).data.callable);
-    const lsdev: *const fn () callconv(.c) void = @ptrCast((root.capabilities.get_node("Devices.lsdev") orelse unreachable).data.callable);
-    const lsmemtbl: *const fn () callconv(.c) void = @ptrCast((root.capabilities.get_node("Memory.lsmemtable") orelse unreachable).data.callable);
+    //const lsblk: *const fn () callconv(.c) void = @ptrCast((root.capabilities.get_node("Devices.MassStorage.lsblk") orelse unreachable).data.callable);
+    //const lspci: *const fn () callconv(.c) void = @ptrCast((root.capabilities.get_node("Devices.PCI.lspci") orelse unreachable).data.callable);
+    //const lsmemtbl: *const fn () callconv(.c) void = @ptrCast((root.capabilities.get_node("Memory.lsmemtable") orelse unreachable).data.callable);
 
     log.info("\nStage 2: Adam's debug info:\n", .{});
 
-    log.info("", .{});
-    lsmemtbl();
+    //log.info("", .{});
+    //lsmemtbl();
 
     log.info("", .{});
     threading.procman.lstasks();
@@ -185,14 +191,14 @@ fn _random_infodump() void {
     log.info("", .{});
     root.fs.lsroot();
 
-    log.info("", .{});
-    lsblk();
+    //log.info("", .{});
+    //lsblk();
+
+    //log.info("", .{});
+    //lspci();
 
     log.info("", .{});
-    lspci();
-
-    log.info("", .{});
-    lsdev();
+    root.devices.lsdev();
 
     log.info("", .{});
 }
