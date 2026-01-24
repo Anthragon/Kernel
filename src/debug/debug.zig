@@ -39,7 +39,7 @@ pub fn dumpHexFailable(bytes: []const u8) !void {
     try dumpHexInternal(bytes, tty_config, serial.chardev(stdout));
 }
 
-// Reimplementation of zig's `std.debug.dumpHexInternal`
+/// Reimplementation of zig's `std.debug.dumpHexInternal`
 fn dumpHexInternal(bytes: []const u8, ttyconf: std.io.tty.Config, writer: anytype) !void {
     var chunks = std.mem.window(u8, bytes, 16, 16);
     while (chunks.next()) |window| {
@@ -86,4 +86,105 @@ pub inline fn lock_frame(frame: usize) void {
 }
 pub inline fn unlock_frame() void {
     locked_frame = 0;
+}
+
+/// Prints to the stdout, stderr or screen console depending on
+/// the message level
+pub fn print(
+    comptime message_level: std.log.Level,
+    comptime scope: @TypeOf(.enum_literal),
+    comptime format: []const u8,
+    comptime headerless: bool,
+    args: anytype,
+) void {
+    if (root.mem.heap.is_allocator_enabled()) {
+        aloc_print(message_level, scope, format, headerless, args);
+    } else {
+        buf_print(message_level, scope, format, headerless, args);
+    }
+}
+
+/// Allocator-free print version
+pub fn buf_print(
+    comptime message_level: std.log.Level,
+    comptime scope: @TypeOf(.enum_literal),
+    comptime format: []const u8,
+    comptime headerless: bool,
+    args: anytype,
+) void {
+    var content_buf: [2048]u8 = undefined;
+
+    const content = std.fmt.bufPrint(&content_buf, format, args) catch b: {
+        const msg = "...[too long]\n";
+        @memcpy(content_buf[2048 - msg.len ..], msg);
+        break :b &content_buf;
+    };
+
+    const header = std.fmt.comptimePrint(
+        "[ {s: <15} {s: <5} ] ",
+        .{ @tagName(scope), @tagName(message_level) },
+    );
+
+    const output1, const output2, const output3 = switch (message_level) {
+        .info => .{ true, false, true },
+        .warn, .debug => .{ false, true, true },
+        .err => .{ true, true, true },
+    };
+
+    if (headerless) {
+        write_log_message(output1, output2, output3, content);
+        write_log_message(output1, output2, output3, "\n");
+    } else {
+        var lines = std.mem.splitAny(u8, content, "\n");
+        var current_line = lines.next();
+        while (current_line) |line| : (current_line = lines.next()) {
+            if (!headerless) write_log_message(output1, output2, false, header);
+            write_log_message(output1, output2, output3, line);
+            write_log_message(output1, output2, output3, "\n");
+        }
+    }
+    if (output3) gout.redraw_screen();
+}
+
+fn aloc_print(
+    comptime message_level: std.log.Level,
+    comptime scope: @TypeOf(.enum_literal),
+    comptime format: []const u8,
+    comptime headerless: bool,
+    args: anytype,
+) void {
+    const gpa = root.mem.heap.kernel_buddy_allocator;
+    const content = std.fmt.allocPrint(gpa, format, args) catch root.oom_panic();
+    defer gpa.free(content);
+
+    const header: []const u8 = std.fmt.comptimePrint(
+        "[ {s: <15} {s: <5} ] ",
+        .{ @tagName(scope), @tagName(message_level) },
+    );
+
+    const output1, const output2, const output3 = switch (message_level) {
+        .info => .{ true, false, true },
+        .warn, .debug => .{ false, true, true },
+        .err => .{ true, true, true },
+    };
+
+    if (headerless) {
+        write_log_message(output1, output2, output3, content);
+        write_log_message(output1, output2, output3, "\n");
+    } else {
+        var lines = std.mem.splitAny(u8, content, "\n");
+        var current_line = lines.next();
+        while (current_line) |line| : (current_line = lines.next()) {
+            if (!headerless) write_log_message(output1, output2, false, header);
+            write_log_message(output1, output2, output3, line);
+            write_log_message(output1, output2, output3, "\n");
+        }
+    }
+    if (output3) gout.redraw_screen();
+}
+
+fn write_log_message(out: bool, err: bool, scr: bool, content: []const u8) void {
+    if (out) serial.chardev(1).writeAll(content) catch unreachable;
+    if (err) serial.chardev(2).writeAll(content) catch unreachable;
+    if (scr) gout.swriter().writeAll(content) catch unreachable;
 }

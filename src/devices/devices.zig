@@ -4,6 +4,7 @@ const system = root.system;
 const debug = root.debug;
 const interop = root.interop;
 const utils = root.utils;
+const capabilities = root.capabilities;
 
 const log = std.log.scoped(.devices);
 
@@ -36,10 +37,10 @@ pub fn init() void {
     arena = .init(root.mem.heap.kernel_buddy_allocator);
     allocator = arena.allocator();
 
-    _ = root.capabilities.register_callable(Guid.zero(), "Devices", "lsdev", @ptrCast(&lsdev)) catch unreachable;
-    //_ = root.capabilities.create_callable(devices_res, "register_device", @ptrCast(&c__register_device)) catch unreachable;
-    //_ = root.capabilities.create_callable(devices_res, "remove_device", @ptrCast(&c__remove_device)) catch unreachable;
-    //_ = root.capabilities.create_callable(devices_res, "set_status", @ptrCast(&c__set_status)) catch unreachable;
+    capabilities.comptime_register_callable(Guid.zero(), "Devices", "list", @ptrCast(&lsdev)) catch unreachable;
+    capabilities.comptime_register_callable(Guid.zero(), "Devices", "register", @ptrCast(&c__register_device)) catch unreachable;
+    capabilities.comptime_register_callable(Guid.zero(), "Devices", "remove", @ptrCast(&c__remove_device)) catch unreachable;
+    capabilities.comptime_register_callable(Guid.zero(), "Devices", "set_status", @ptrCast(&c__set_status)) catch unreachable;
 
     //_ = root.capabilities.create_event(devices_res, "on_device_registered", on_device_registered_bind, on_pci_device_probe_unbind) catch unreachable;
 }
@@ -89,6 +90,36 @@ fn set_status(dev: usize, status: Device.DeviceStatus) !void {
     d.?.status = status;
 }
 
+fn c__register_device(
+    devname: [*:0]const u8,
+    identifier: Guid,
+    specifier: usize,
+    interface: Guid,
+    flags: packed struct(u8) {
+        canSee: u1,
+        canReed: u1,
+        canWrite: u1,
+
+        _rsvd: u5 = 0,
+    },
+) callconv(.c) Result(usize) {
+    return .frombuiltin(register_device(
+        std.mem.sliceTo(devname, 0),
+        identifier,
+        specifier,
+        interface,
+        @enumFromInt(flags.canSee),
+        @enumFromInt(flags.canReed),
+        @enumFromInt(flags.canWrite),
+    ));
+}
+fn c__remove_device(dev: usize) callconv(.c) Result(void) {
+    return .frombuiltin(remove_device(dev));
+}
+fn c__set_status(dev: usize, status: Device.DeviceStatus) callconv(.c) Result(void) {
+    return .frombuiltin(set_status(dev, status));
+}
+
 fn on_device_registered_bind(callback: *const anyopaque, ctx: ?*anyopaque) callconv(.c) bool {
     const devidlist = brk: {
         if (ctx == null) return false;
@@ -119,14 +150,17 @@ fn on_pci_device_probe_unbind(callback: *const anyopaque) callconv(.c) void {
 fn run_device_registered_all_callbacks(i: usize, dev: *Device) void {
     for (device_register_callbacks.items) |e| {
         const ctx = e.context;
+        _ = ctx;
+        _ = i;
+        _ = dev;
 
-        for (ctx) |ii| {
-            if (ii.guid != dev.identifier) continue;
-            if (ii.subclass != 0 and dev.subclass != ii.subclass) continue;
+        //for (ctx) |ii| {
+        //    if (ii.guid != dev.identifier) continue;
+        //    if (ii.subclass != 0 and dev.subclass != ii.subclass) continue;
 
-            e.callback(i);
-            break;
-        }
+        //    e.callback(i);
+        //    break;
+        //}
     }
 }
 fn run_all_devices_registered_callback(entry: OnDeviceRegisterEntry) void {

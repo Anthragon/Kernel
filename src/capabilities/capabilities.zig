@@ -134,6 +134,23 @@ pub fn register_callable(
     });
 }
 
+pub fn comptime_register_callable(
+    comptime module_uuid: Guid,
+    comptime namespace: []const u8,
+    comptime symbol: []const u8,
+    comptime callback: *const anyopaque,
+) !void {
+    comptime {
+        const comptime_symbol = std.fmt.comptimePrint(
+            "cap privileged_callable [{f}]{s}::{s}",
+            .{ module_uuid, namespace, symbol },
+        );
+        const exportOptions: std.builtin.ExportOptions = .{ .name = comptime_symbol };
+        @export(callback, exportOptions);
+    }
+    try register_callable(module_uuid, namespace, symbol, callback);
+}
+
 pub fn c__register_property(
     module_uuid: Guid,
     namespace: [*:0]const u8,

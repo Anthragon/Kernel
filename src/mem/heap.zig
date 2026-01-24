@@ -63,19 +63,23 @@ const kernel_buddy_allocator_vtable: Allocator.VTable = .{
     .free = wrapper_free,
 };
 
+pub fn is_allocator_enabled() bool {
+    return root.mem.vmm.get_gpa_allocator() != null;
+}
+
 fn wrapper_alloc(_: *anyopaque, len: usize, alignment: Alignment, ret_addr: usize) ?[*]u8 {
-    const alloc = root.mem.vmm.kernel_allocator.?.allocator();
+    const alloc = root.mem.vmm.get_gpa_allocator().?;
     return alloc.vtable.alloc(alloc.ptr, len, alignment, ret_addr);
 }
 fn wrapper_resize(_: *anyopaque, memory: []u8, alignment: Alignment, new_len: usize, ret_addr: usize) bool {
-    const alloc = root.mem.vmm.kernel_allocator.?.allocator();
+    const alloc = root.mem.vmm.get_gpa_allocator().?;
     return alloc.vtable.resize(alloc.ptr, memory, alignment, new_len, ret_addr);
 }
 fn wrapper_remap(_: *anyopaque, memory: []u8, alignment: Alignment, new_len: usize, ret_addr: usize) ?[*]u8 {
-    const alloc = root.mem.vmm.kernel_allocator.?.allocator();
+    const alloc = root.mem.vmm.get_gpa_allocator().?;
     return alloc.vtable.remap(alloc.ptr, memory, alignment, new_len, ret_addr);
 }
 fn wrapper_free(_: *anyopaque, memory: []u8, alignment: Alignment, ret_addr: usize) void {
-    const alloc = root.mem.vmm.kernel_allocator.?.allocator();
+    const alloc = root.mem.vmm.get_gpa_allocator().?;
     return alloc.vtable.free(alloc.ptr, memory, alignment, ret_addr);
 }

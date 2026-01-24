@@ -6,8 +6,6 @@ const paging = root.mem.paging;
 
 const Alignment = std.mem.Alignment;
 
-const log = std.log.scoped(.@"page allocator");
-
 /// Kernel Page Allocator
 /// This structure does not uses the zig standard allocator,
 /// instead it is directly refered and it interaction happens
@@ -16,7 +14,13 @@ pub const KernelPageAllocator = struct {
     pub fn alloc(size: usize, alignment: Alignment) ?[*]u8 {
         const vaddr = reserve(size, alignment);
 
-        log.debug("allocating {} pages in address {x}", .{ size, vaddr });
+        root.debug.buf_print(
+            .debug,
+            .@"page allocator",
+            "allocating {} pages in address {x}",
+            false,
+            .{ size, vaddr },
+        );
 
         for (0..size) |i| {
             const page = pmm.get_single_page(.kernel_heap);
@@ -38,7 +42,13 @@ pub const KernelPageAllocator = struct {
         return @as([*]u8, @ptrFromInt(vaddr));
     }
     pub fn realloc(old_mem: [*]u8, size: usize, alignment: Alignment) ?[*]u8 {
-        log.debug("reallocating {} pages", .{size});
+        root.debug.buf_print(
+            .debug,
+            .@"page allocator",
+            "reallocating {} pages",
+            false,
+            .{ size },
+        );
 
         _ = old_mem;
         _ = alignment;

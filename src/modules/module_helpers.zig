@@ -1,10 +1,10 @@
 const std = @import("std");
 const root = @import("root");
 const modules = @import("modules.zig");
+const capabilities = root.capabilities;
 
 const Guid = root.utils.Guid;
 
-const log = std.log.scoped(.@"Module Helper");
 const module_log = std.log.scoped(.Module);
 
 const allocator = root.mem.heap.kernel_buddy_allocator;
@@ -14,21 +14,19 @@ comptime {
     @export(&root.capabilities.c__register_callable, .{ .name = "Anthragon:buildin_register_capability_callable" });
     @export(&root.capabilities.c__register_property, .{ .name = "Anthragon:buildin_register_capability_property" });
     @export(&root.capabilities.c__register_event, .{ .name = "Anthragon:buildin_register_capability_event" });
-
-    @export(&m_panic, .{ .name = "cap privileged_callable [00000000-0000-0000-0000-000000000000]System.ModuleHelper::panic" });
-
-    @export(&m_log_info, .{ .name = "cap privileged_callable [00000000-0000-0000-0000-000000000000]System.ModuleHelper::log_info" });
-    @export(&m_log_debug, .{ .name = "cap privileged_callable [00000000-0000-0000-0000-000000000000]System.ModuleHelper::log_debug" });
-    @export(&m_log_warn, .{ .name = "cap privileged_callable [00000000-0000-0000-0000-000000000000]System.ModuleHelper::log_warn" });
-    @export(&m_log_err, .{ .name = "cap privileged_callable [00000000-0000-0000-0000-000000000000]System.ModuleHelper::log_err" });
-
-    @export(&m_malloc, .{ .name = "cap privileged_callable [00000000-0000-0000-0000-000000000000]System.ModuleHelper::malloc" });
-    @export(&m_mresize, .{ .name = "cap privileged_callable [00000000-0000-0000-0000-000000000000]System.ModuleHelper::mresize" });
-    @export(&m_mremap, .{ .name = "cap privileged_callable [00000000-0000-0000-0000-000000000000]System.ModuleHelper::mremap" });
-    @export(&m_mfree, .{ .name = "cap privileged_callable [00000000-0000-0000-0000-000000000000]System.ModuleHelper::mfree" });
 }
 
-pub fn register_helpers() void {}
+pub fn register_helpers() void {
+    capabilities.comptime_register_callable(.zero(), "System.ModuleHelper", "panic", m_panic) catch @panic("Not able to register system capability");
+    capabilities.comptime_register_callable(.zero(), "System.ModuleHelper", "log_info", m_log_info) catch @panic("Not able to register system capability");
+    capabilities.comptime_register_callable(.zero(), "System.ModuleHelper", "log_debug", m_log_debug) catch @panic("Not able to register system capability");
+    capabilities.comptime_register_callable(.zero(), "System.ModuleHelper", "log_warn", m_log_warn) catch @panic("Not able to register system capability");
+    capabilities.comptime_register_callable(.zero(), "System.ModuleHelper", "log_err", m_log_err) catch @panic("Not able to register system capability");
+    capabilities.comptime_register_callable(.zero(), "System.ModuleHelper", "malloc", m_malloc) catch @panic("Not able to register system capability");
+    capabilities.comptime_register_callable(.zero(), "System.ModuleHelper", "mresize", m_mresize) catch @panic("Not able to register system capability");
+    capabilities.comptime_register_callable(.zero(), "System.ModuleHelper", "mremap", m_mremap) catch @panic("Not able to register system capability");
+    capabilities.comptime_register_callable(.zero(), "System.ModuleHelper", "mfree", m_mfree) catch @panic("Not able to register system capability");
+}
 
 fn m_panic(module_uuid: Guid, message: [*:0]const u8) callconv(.c) noreturn {
     std.debug.panic("Module {f} panic: {s}", .{ module_uuid, message });
@@ -36,19 +34,43 @@ fn m_panic(module_uuid: Guid, message: [*:0]const u8) callconv(.c) noreturn {
 
 fn m_log_info(module_uuid: Guid, scope: [*:0]const u8, message: [*:0]const u8) callconv(.c) void {
     const module = modules.get_module_by_uuid(module_uuid).?;
-    module_log.info("[{f} {s} {s}] {s}", .{ module_uuid, module.name, scope, message });
+    root.debug.print(
+        .info,
+        .@"Module Helper",
+        "[ {s: <8} {s: <7} info  ] {s}",
+        true,
+        .{ module.name, scope, message },
+    );
 }
 fn m_log_debug(module_uuid: Guid, scope: [*:0]const u8, message: [*:0]const u8) callconv(.c) void {
     const module = modules.get_module_by_uuid(module_uuid).?;
-    module_log.debug("[{f} {s} {s}] {s}", .{ module_uuid, module.name, scope, message });
+    root.debug.print(
+        .debug,
+        .@"Module Helper",
+        "[ {s: <8} {s: <7} debug ] {s}",
+        true,
+        .{ module.name, scope, message },
+    );
 }
 fn m_log_warn(module_uuid: Guid, scope: [*:0]const u8, message: [*:0]const u8) callconv(.c) void {
     const module = modules.get_module_by_uuid(module_uuid).?;
-    module_log.warn("[{f} {s} {s}] {s}", .{ module_uuid, module.name, scope, message });
+    root.debug.print(
+        .warn,
+        .@"Module Helper",
+        "[ {s: <8} {s: <7} warn  ] {s}",
+        true,
+        .{ module.name, scope, message },
+    );
 }
 fn m_log_err(module_uuid: Guid, scope: [*:0]const u8, message: [*:0]const u8) callconv(.c) void {
     const module = modules.get_module_by_uuid(module_uuid).?;
-    module_log.err("[{f} {s} {s}] {s}", .{ module_uuid, module.name, scope, message });
+    root.debug.print(
+        .err,
+        .@"Module Helper",
+        "[ {s: <8} {s: <7} err   ] {s}",
+        true,
+        .{ module.name, scope, message },
+    );
 }
 
 fn m_malloc(module_uuid: Guid, length: usize, alignment: usize) callconv(.c) ?[*]u8 {

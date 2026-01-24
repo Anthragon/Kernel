@@ -23,24 +23,28 @@ pub fn install_system_interrupts() void {
 }
 
 fn division_error(frame: *TaskContext) void {
+    root.mem.vmm.disable_gpa_allocator();
     log.debug("\n(#DE) Division Exception!", .{});
     log.debug("(#DE) An attempt to divide by 0 was made.", .{});
 
     root.panic("Division Error", null, frame.get_instruction_ptr());
 }
 fn overflow_error(frame: *TaskContext) void {
+    root.mem.vmm.disable_gpa_allocator();
     log.debug("\n(#OF) Overflow Exception!", .{});
     log.debug("(#OF) INTO check failed.", .{});
 
     root.panic("Overflow Error", null, frame.get_instruction_ptr());
 }
 fn bound_range_exceeded(frame: *TaskContext) void {
+    root.mem.vmm.disable_gpa_allocator();
     log.debug("\n(#BR) Bound Range Exceeded Exception!", .{});
     log.debug("(#BR) Index was out of bounds.", .{});
 
     root.panic("Bound Range Exceeded", null, frame.get_instruction_ptr());
 }
 fn invalid_opcode(frame: *TaskContext) void {
+    root.mem.vmm.disable_gpa_allocator();
     log.debug("\n(#UD) Invalid OpCode Exception!", .{});
     log.debug("(#UD) Attempted to execute an invalid opcode.", .{});
 
@@ -62,6 +66,7 @@ fn invalid_opcode(frame: *TaskContext) void {
 }
 
 fn double_fault(frame: *TaskContext) void {
+    root.mem.vmm.disable_gpa_allocator();
     log.debug("(#DF) The same exception happened two times.", .{});
 
     log.debug("\n(#DF) Dumping frame:", .{});
@@ -72,6 +77,7 @@ fn double_fault(frame: *TaskContext) void {
 }
 
 fn general_protection_fault(frame: *TaskContext) void {
+    root.mem.vmm.disable_gpa_allocator();
     log.debug("\n(#GP) General Protection Exception!", .{});
 
     // Shows system-dependent error messages here
@@ -95,6 +101,7 @@ fn general_protection_fault(frame: *TaskContext) void {
     sys.assembly.halt();
 }
 fn page_fault(frame: *TaskContext) void {
+    root.mem.vmm.disable_gpa_allocator();
     log.debug("\n(#PF) Page Fault Exception!", .{});
 
     // Shows system-dependent error messages here
