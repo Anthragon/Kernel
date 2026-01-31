@@ -21,7 +21,9 @@ pub fn format(self: @This(), writer: *std.Io.Writer) std.Io.Writer.Error!void {
 
 const Privilege = root.lib.Privilege;
 pub const DeviceStatus = enum(usize) {
+    failed = 0,
+    unset,
+    
     unbinded,
     working,
-    failed,
 };

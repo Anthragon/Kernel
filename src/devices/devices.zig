@@ -15,7 +15,9 @@ const Guid = utils.Guid;
 var arena: std.heap.ArenaAllocator = undefined;
 var allocator: std.mem.Allocator = undefined;
 
-var devices_list: std.ArrayListUnmanaged(?*Device) = .empty;
+var devices_map: std.AutoHashMapUnmanaged(usize, *Device) = .empty;
+var devices_count: usize = 0;
+var last_assigned_id: usize = 0;
 
 const OnDeviceRegisterEntryCtx = extern struct {
     guid: Guid,
@@ -38,7 +40,7 @@ pub fn init() void {
     allocator = arena.allocator();
 
     capabilities.comptime_register_callable(Guid.zero(), "Devices", "list", @ptrCast(&lsdev)) catch unreachable;
-    capabilities.comptime_register_callable(Guid.zero(), "Devices", "register", @ptrCast(&c__register_device)) catch unreachable;
+    capabilities.comptime_register_callable(Guid.zero(), "Devices", "register", @ptrCast(&c__register_devices)) catch unreachable;
     capabilities.comptime_register_callable(Guid.zero(), "Devices", "remove", @ptrCast(&c__remove_device)) catch unreachable;
     capabilities.comptime_register_callable(Guid.zero(), "Devices", "set_status", @ptrCast(&c__set_status)) catch unreachable;
 
@@ -53,7 +55,8 @@ fn register_device(
     canSee: root.lib.Privilege,
     canRead: root.lib.Privilege,
     canControl: root.lib.Privilege,
-) !usize {
+    status: Device.DeviceStatus,
+) !struct { id: usize, status: Device.DeviceStatus } {
     const nameclone = allocator.dupeZ(u8, devname) catch root.oom_panic();
     errdefer allocator.free(nameclone);
 
@@ -71,27 +74,42 @@ fn register_device(
         .canControl = canControl,
     };
 
-    const index = devices_list.items.len;
-    devices_list.append(allocator, dev) catch root.oom_panic();
+    const index = brk: {
+        var idx: usize = last_assigned_id +% 1;
+        while (devices_map.contains(idx) or idx == 0) idx = idx +% 1;
+        break :brk idx;
+    };
+    devices_map.put(allocator, index, dev) catch root.oom_panic();
+    devices_count += 1;
     run_device_registered_all_callbacks(index, dev);
-    return index;
+
+    log.debug("Registered device {s} in slot {}", .{ dev.name, index });
+
+    return .{
+        .id = index,
+        .status = if (status == .unset) Device.DeviceStatus.unbinded else status,
+    };
 }
 fn remove_device(dev: usize) !void {
-    const d = devices_list.items[dev];
-    if (d != null) return error.DoesNotExist;
+    if (dev == 0) return error.DoesNotExist;
+    const d = devices_map.get(dev);
+    if (d == null) return error.DoesNotExist;
 
     allocator.destroy(d.?);
-    devices_list.items[dev] = null;
+    _ = devices_map.remove(dev);
+    devices_count -= 1;
 }
 fn set_status(dev: usize, status: Device.DeviceStatus) !void {
-    const d = devices_list.items[dev];
+    if (dev == 0) return error.DoesNotExist;
+    const d = devices_map.get(dev);
     if (d == null) return error.DoesNotExist;
 
     d.?.status = status;
 }
 
-fn c__register_device(
-    devname: [*:0]const u8,
+const RegisterDeviceInfo = extern struct {
+    id: usize,
+    name: [*:0]const u8,
     identifier: Guid,
     specifier: usize,
     interface: Guid,
@@ -102,16 +120,47 @@ fn c__register_device(
 
         _rsvd: u5 = 0,
     },
-) callconv(.c) Result(usize) {
-    return .frombuiltin(register_device(
-        std.mem.sliceTo(devname, 0),
-        identifier,
-        specifier,
-        interface,
-        @enumFromInt(flags.canSee),
-        @enumFromInt(flags.canReed),
-        @enumFromInt(flags.canWrite),
-    ));
+    status: Device.DeviceStatus,
+};
+fn c__register_devices(devInfoPtr: [*]RegisterDeviceInfo, devInfoCount: usize) callconv(.c) Result(void) {
+    const devInfo = devInfoPtr[0..devInfoCount];
+
+    var i: usize = 0;
+    var lastError: ?anyerror = null;
+
+    while (lastError == null and i < devInfoCount) {
+        var dev = &devInfo[i];
+        const result = register_device(
+            std.mem.sliceTo(dev.name, 0),
+            dev.identifier,
+            dev.specifier,
+            dev.interface,
+            @enumFromInt(dev.flags.canSee),
+            @enumFromInt(dev.flags.canReed),
+            @enumFromInt(dev.flags.canWrite),
+            dev.status,
+        ) catch |err| {
+            lastError = err;
+            break;
+        };
+
+        dev.id = result.id;
+        dev.status = result.status;
+
+        i += 1;
+    }
+
+    if (lastError) |lerr| {
+        for (0..i) |j| {
+            var dev: *RegisterDeviceInfo = &devInfo[j];
+            remove_device(dev.id) catch unreachable;
+            dev.id = 0;
+            dev.status = .failed;
+        }
+        return .frombuiltin(lerr);
+    }
+
+    return .retvoid();
 }
 fn c__remove_device(dev: usize) callconv(.c) Result(void) {
     return .frombuiltin(remove_device(dev));
@@ -164,26 +213,29 @@ fn run_device_registered_all_callbacks(i: usize, dev: *Device) void {
     }
 }
 fn run_all_devices_registered_callback(entry: OnDeviceRegisterEntry) void {
-    for (devices_list.items, 0..) |dev, i| {
-        if (dev == null) continue;
+    var iterator = devices_map.iterator();
+
+    while (iterator.next()) |dev| {
         for (entry.context) |contexts| {
             if (contexts.guid != dev.?.identifier) continue;
             if (contexts.subclass != 0 and dev.?.subclass != contexts.subclass) continue;
 
-            entry.callback(i);
+            entry.callback(dev.key_ptr.*);
         }
     }
 }
 
 pub fn lsdev() callconv(.c) void {
     log.warn("lsdev", .{});
-    log.info("Listing registered devices:", .{});
+    log.info("Listing registered devices ({}):", .{devices_count});
 
-    for (devices_list.items, 0..) |dev, i| {
-        if (dev == null) continue;
+    devices_map.lockPointers();
+    var devices_iterator = devices_map.iterator();
+    while (devices_iterator.next()) |dev| {
         log.info(
-            "{} - {f}",
-            .{ i, dev.? },
+            "{:0>4}: {f}",
+            .{ dev.key_ptr.*, dev.value_ptr.* },
         );
     }
+    devices_map.unlockPointers();
 }

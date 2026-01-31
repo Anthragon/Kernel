@@ -51,13 +51,13 @@ pub const Guid = packed struct {
                 continue;
             }
             if (i + 1 >= len or j >= 16) @panic("Invalid format");
-            const b = try std.fmt.parseInt(u8, str[i .. i + 2], 16);
+            const b = std.fmt.parseInt(u8, str[i .. i + 2], 16) catch @panic("Invalid format");
             buf[j] = b;
             i += 2;
             j += 1;
         }
         if (j != 16) @panic("Invalid format");
-        return fromSlice(&buf);
+        return fromSlice(&buf) catch unreachable;
     }
 
     /// format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
