@@ -95,12 +95,13 @@ pub fn print(
     comptime scope: @TypeOf(.enum_literal),
     comptime format: []const u8,
     comptime headerless: bool,
+    comptime newline: bool,
     args: anytype,
 ) void {
     if (root.mem.heap.is_allocator_enabled()) {
-        aloc_print(message_level, scope, format, headerless, args);
+        aloc_print(message_level, scope, format, headerless, newline, args);
     } else {
-        buf_print(message_level, scope, format, headerless, args);
+        buf_print(message_level, scope, format, headerless, newline, args);
     }
 }
 
@@ -110,6 +111,7 @@ pub fn buf_print(
     comptime scope: @TypeOf(.enum_literal),
     comptime format: []const u8,
     comptime headerless: bool,
+    comptime newline: bool,
     args: anytype,
 ) void {
     var content_buf: [2048]u8 = undefined;
@@ -133,14 +135,14 @@ pub fn buf_print(
 
     if (headerless) {
         write_log_message(output1, output2, output3, content);
-        write_log_message(output1, output2, output3, "\n");
+        if (newline) write_log_message(output1, output2, output3, "\n");
     } else {
         var lines = std.mem.splitAny(u8, content, "\n");
         var current_line = lines.next();
         while (current_line) |line| : (current_line = lines.next()) {
             if (!headerless) write_log_message(output1, output2, false, header);
             write_log_message(output1, output2, output3, line);
-            write_log_message(output1, output2, output3, "\n");
+            if (newline) write_log_message(output1, output2, output3, "\n");
         }
     }
     if (output3) gout.redraw_screen();
@@ -151,6 +153,7 @@ fn aloc_print(
     comptime scope: @TypeOf(.enum_literal),
     comptime format: []const u8,
     comptime headerless: bool,
+    comptime newline: bool,
     args: anytype,
 ) void {
     const gpa = root.mem.heap.kernel_buddy_allocator;
@@ -170,14 +173,14 @@ fn aloc_print(
 
     if (headerless) {
         write_log_message(output1, output2, output3, content);
-        write_log_message(output1, output2, output3, "\n");
+        if (newline) write_log_message(output1, output2, output3, "\n");
     } else {
         var lines = std.mem.splitAny(u8, content, "\n");
         var current_line = lines.next();
         while (current_line) |line| : (current_line = lines.next()) {
             if (!headerless) write_log_message(output1, output2, false, header);
             write_log_message(output1, output2, output3, line);
-            write_log_message(output1, output2, output3, "\n");
+            if (newline) write_log_message(output1, output2, output3, "\n");
         }
     }
     if (output3) gout.redraw_screen();

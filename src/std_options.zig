@@ -27,6 +27,7 @@ pub fn logFn(
         scope,
         format,
         false,
+        true,
         args,
     );
 }

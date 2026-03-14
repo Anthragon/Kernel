@@ -19,6 +19,7 @@ pub const KernelPageAllocator = struct {
             .@"page allocator",
             "allocating {} pages in address {x}",
             false,
+            false,
             .{ size, vaddr },
         );
 
@@ -47,7 +48,8 @@ pub const KernelPageAllocator = struct {
             .@"page allocator",
             "reallocating {} pages",
             false,
-            .{ size },
+            false,
+            .{size},
         );
 
         _ = old_mem;

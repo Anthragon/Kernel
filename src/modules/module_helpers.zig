@@ -22,54 +22,87 @@ pub fn register_helpers() void {
     capabilities.comptime_register_callable(.zero(), "System.ModuleHelper", "log_debug", m_log_debug) catch @panic("Not able to register system capability");
     capabilities.comptime_register_callable(.zero(), "System.ModuleHelper", "log_warn", m_log_warn) catch @panic("Not able to register system capability");
     capabilities.comptime_register_callable(.zero(), "System.ModuleHelper", "log_err", m_log_err) catch @panic("Not able to register system capability");
+    capabilities.comptime_register_callable(.zero(), "System.ModuleHelper", "log_raw", m_log_raw) catch @panic("Not able to register system capability");
     capabilities.comptime_register_callable(.zero(), "System.ModuleHelper", "malloc", m_malloc) catch @panic("Not able to register system capability");
     capabilities.comptime_register_callable(.zero(), "System.ModuleHelper", "mresize", m_mresize) catch @panic("Not able to register system capability");
     capabilities.comptime_register_callable(.zero(), "System.ModuleHelper", "mremap", m_mremap) catch @panic("Not able to register system capability");
     capabilities.comptime_register_callable(.zero(), "System.ModuleHelper", "mfree", m_mfree) catch @panic("Not able to register system capability");
 }
 
-fn m_panic(module_uuid: Guid, message: [*:0]const u8) callconv(.c) noreturn {
-    std.debug.panic("Module {f} panic: {s}", .{ module_uuid, message });
+fn m_panic(module_uuid: Guid, message_ptr: [*]const u8, message_len: usize) callconv(.c) noreturn {
+    std.debug.panic("Module {f} panic: {s}", .{ module_uuid, message_ptr[0..message_len] });
 }
 
-fn m_log_info(module_uuid: Guid, scope: [*:0]const u8, message: [*:0]const u8) callconv(.c) void {
+fn m_log_info(module_uuid: Guid, scope: [*:0]const u8, message_ptr: [*]const u8, message_len: usize) callconv(.c) void {
     const module = modules.get_module_by_uuid(module_uuid).?;
     root.debug.print(
         .info,
         .@"Module Helper",
         "[ {s: <8} {s: <7} info  ] {s}",
         true,
-        .{ module.name, scope, message },
+        true,
+        .{
+            module.name,
+            scope,
+            message_ptr[0..message_len],
+        },
     );
 }
-fn m_log_debug(module_uuid: Guid, scope: [*:0]const u8, message: [*:0]const u8) callconv(.c) void {
+fn m_log_debug(module_uuid: Guid, scope: [*:0]const u8, message_ptr: [*]const u8, message_len: usize) callconv(.c) void {
     const module = modules.get_module_by_uuid(module_uuid).?;
     root.debug.print(
         .debug,
         .@"Module Helper",
         "[ {s: <8} {s: <7} debug ] {s}",
         true,
-        .{ module.name, scope, message },
+        true,
+        .{
+            module.name,
+            scope,
+            message_ptr[0..message_len],
+        },
     );
 }
-fn m_log_warn(module_uuid: Guid, scope: [*:0]const u8, message: [*:0]const u8) callconv(.c) void {
+fn m_log_warn(module_uuid: Guid, scope: [*:0]const u8, message_ptr: [*]const u8, message_len: usize) callconv(.c) void {
     const module = modules.get_module_by_uuid(module_uuid).?;
     root.debug.print(
         .warn,
         .@"Module Helper",
         "[ {s: <8} {s: <7} warn  ] {s}",
         true,
-        .{ module.name, scope, message },
+        true,
+        .{
+            module.name,
+            scope,
+            message_ptr[0..message_len],
+        },
     );
 }
-fn m_log_err(module_uuid: Guid, scope: [*:0]const u8, message: [*:0]const u8) callconv(.c) void {
+fn m_log_err(module_uuid: Guid, scope: [*:0]const u8, message_ptr: [*]const u8, message_len: usize) callconv(.c) void {
     const module = modules.get_module_by_uuid(module_uuid).?;
     root.debug.print(
         .err,
         .@"Module Helper",
         "[ {s: <8} {s: <7} err   ] {s}",
         true,
-        .{ module.name, scope, message },
+        true,
+        .{
+            module.name,
+            scope,
+            message_ptr[0..message_len],
+        },
+    );
+}
+fn m_log_raw(module_uuid: Guid, scope: [*:0]const u8, message_ptr: [*]const u8, message_len: usize) callconv(.c) void {
+    _ = module_uuid;
+    _ = scope;
+    root.debug.print(
+        .info,
+        .@"Module Helper",
+        "{s}",
+        true,
+        false,
+        .{message_ptr[0..message_len]},
     );
 }
 
