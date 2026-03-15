@@ -17,6 +17,7 @@ pub const common = .{
     .FsNode = @import("common/FsNode.zig").FsNode,
 
     .time = @import("common/time.zig"),
+    .devices = @import("common/devices.zig"),
 };
 pub const paging = @import("paging.zig");
 pub const boot = @import("common/boot.zig");

@@ -9,6 +9,8 @@ const capabilities = root.capabilities;
 const log = std.log.scoped(.devices);
 
 const Device = @import("Device.zig");
+const RegisterDeviceInfo = root.lib.common.devices.RegisterInfo;
+const DeviceStatus = root.lib.common.devices.Status;
 const Result = interop.Result;
 const Guid = utils.Guid;
 
@@ -43,6 +45,7 @@ pub fn init() void {
     capabilities.comptime_register_callable(Guid.zero(), "Devices", "register", @ptrCast(&c__register_devices)) catch unreachable;
     capabilities.comptime_register_callable(Guid.zero(), "Devices", "remove", @ptrCast(&c__remove_device)) catch unreachable;
     capabilities.comptime_register_callable(Guid.zero(), "Devices", "set_status", @ptrCast(&c__set_status)) catch unreachable;
+    capabilities.comptime_register_callable(Guid.zero(), "Devices", "control", @ptrCast(&c__control)) catch unreachable;
 
     //_ = root.capabilities.create_event(devices_res, "on_device_registered", on_device_registered_bind, on_pci_device_probe_unbind) catch unreachable;
 }
@@ -55,8 +58,10 @@ fn register_device(
     canSee: root.lib.Privilege,
     canRead: root.lib.Privilege,
     canControl: root.lib.Privilege,
-    status: Device.DeviceStatus,
-) !struct { id: usize, status: Device.DeviceStatus } {
+    status: DeviceStatus,
+    implPointer: *anyopaque,
+    implVtable: *const root.lib.common.devices.VTable,
+) !struct { id: usize, status: DeviceStatus } {
     const nameclone = allocator.dupeZ(u8, devname) catch root.oom_panic();
     errdefer allocator.free(nameclone);
 
@@ -68,10 +73,12 @@ fn register_device(
         .identifier = identifier,
         .specifier = specifier,
         .interface = interface,
-        .status = .unbinded,
+        .status = if (status == .unset) Device.Status.unbinded else status,
         .canSee = canSee,
         .canRead = canRead,
         .canControl = canControl,
+        .implPointer = implPointer,
+        .implVtable = implVtable,
     };
 
     const index = brk: {
@@ -87,7 +94,7 @@ fn register_device(
 
     return .{
         .id = index,
-        .status = if (status == .unset) Device.DeviceStatus.unbinded else status,
+        .status = dev.status,
     };
 }
 fn remove_device(dev: usize) !void {
@@ -99,7 +106,7 @@ fn remove_device(dev: usize) !void {
     _ = devices_map.remove(dev);
     devices_count -= 1;
 }
-fn set_status(dev: usize, status: Device.DeviceStatus) !void {
+fn set_status(dev: usize, status: Device.Status) !void {
     if (dev == 0) return error.DoesNotExist;
     const d = devices_map.get(dev);
     if (d == null) return error.DoesNotExist;
@@ -107,21 +114,6 @@ fn set_status(dev: usize, status: Device.DeviceStatus) !void {
     d.?.status = status;
 }
 
-const RegisterDeviceInfo = extern struct {
-    id: usize,
-    name: [*:0]const u8,
-    identifier: Guid,
-    specifier: usize,
-    interface: Guid,
-    flags: packed struct(u8) {
-        canSee: u1,
-        canReed: u1,
-        canWrite: u1,
-
-        _rsvd: u5 = 0,
-    },
-    status: Device.DeviceStatus,
-};
 fn c__register_devices(devInfoPtr: [*]RegisterDeviceInfo, devInfoCount: usize) callconv(.c) Result(void) {
     const devInfo = devInfoPtr[0..devInfoCount];
 
@@ -135,10 +127,12 @@ fn c__register_devices(devInfoPtr: [*]RegisterDeviceInfo, devInfoCount: usize) c
             dev.identifier,
             dev.specifier,
             dev.interface,
-            @enumFromInt(dev.flags.canSee),
-            @enumFromInt(dev.flags.canReed),
-            @enumFromInt(dev.flags.canWrite),
+            dev.flags.canSee,
+            dev.flags.canReed,
+            dev.flags.canWrite,
             dev.status,
+            dev.implPointer,
+            dev.implVtable,
         ) catch |err| {
             lastError = err;
             break;
@@ -165,8 +159,22 @@ fn c__register_devices(devInfoPtr: [*]RegisterDeviceInfo, devInfoCount: usize) c
 fn c__remove_device(dev: usize) callconv(.c) Result(void) {
     return .frombuiltin(remove_device(dev));
 }
-fn c__set_status(dev: usize, status: Device.DeviceStatus) callconv(.c) Result(void) {
+fn c__set_status(dev: usize, status: Device.Status) callconv(.c) Result(void) {
     return .frombuiltin(set_status(dev, status));
+}
+fn c__control(dev: usize, ctlValue: [*]usize, ctlLen: usize) callconv(.c) Result(usize) {
+    if (dev == 0) return .err(.notFound);
+    const d = devices_map.get(dev);
+    if (d) |device| {
+        const res = device.implVtable.control(
+            device.implPointer,
+            ctlValue,
+            ctlLen,
+        );
+        if (!res.isok()) return res;
+    } else return .err(.notFound);
+    
+    return .val(0);
 }
 
 fn on_device_registered_bind(callback: *const anyopaque, ctx: ?*anyopaque) callconv(.c) bool {

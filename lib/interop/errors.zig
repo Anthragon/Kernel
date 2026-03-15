@@ -7,6 +7,7 @@ pub const KernelErrorEnum = enum(usize) {
     nullContext,
     nullArgument,
     outOfMemory,
+    invalidValue,
 
     // Query
     notFound,
@@ -35,6 +36,7 @@ pub const KernelError = error{
     NullContext,
     NullArgument,
     OutOfMemory,
+    InvalidValue,
 
     NotFound,
 
@@ -60,6 +62,7 @@ pub fn errorFromEnum(err: KernelErrorEnum) KernelError {
         .nullContext => KernelError.NullContext,
         .nullArgument => KernelError.NullArgument,
         .outOfMemory => KernelError.OutOfMemory,
+        .invalidValue => KernelError.InvalidValue,
 
         .notFound => KernelError.NotFound,
 
@@ -85,6 +88,7 @@ pub fn enumFromError(err: KernelError) KernelErrorEnum {
         KernelError.NullContext => .nullContext,
         KernelError.NullArgument => .nullArgument,
         KernelError.OutOfMemory => .outOfMemory,
+        KernelError.InvalidValue => .invalidValue,
 
         KernelError.NotFound => .notFound,
 
