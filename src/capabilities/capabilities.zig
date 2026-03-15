@@ -76,15 +76,15 @@ pub fn lscaps() void {
     for (capabilities_map.values()) |v| {
         switch (v.data) {
             .callable => |c| writer.print(
-                "[{f}] C {s: <50} -> 0x{x:0>16}\n",
+                "[{f}] PC {s: <50} -> 0x" ++ (if (@sizeOf(usize) == 8) "{x:0>16}" else "{x:0>8}") ++ "\n",
                 .{ v.module_guid, v.full_identifier, @intFromPtr(c) },
             ) catch root.oom_panic(),
             .property => |c| writer.print(
-                "[{f}] P {s: <50} -> {{ get = 0x{x:0>16}, set = 0x{x:0>16} }}\n",
+                "[{f}] PP {s: <50} -> {{ get = 0x" ++ (if (@sizeOf(usize) == 8) "{x:0>16}" else "{x:0>8}") ++ ", set = 0x" ++ (if (@sizeOf(usize) == 8) "{x:0>16}" else "{x:0>8}") ++ " }}\n",
                 .{ v.module_guid, v.full_identifier, @intFromPtr(c.getter_callback), @intFromPtr(c.setter_callback) },
             ) catch root.oom_panic(),
             .event => |c| writer.print(
-                "[{f}] E {s: <50} -> {{ bind = 0x{x:0>16}, unbind = 0x{x:0>16} }}\n",
+                "[{f}] PE {s: <50} -> {{ bind = 0x" ++ (if (@sizeOf(usize) == 8) "{x:0>16}" else "{x:0>8}") ++ ", unbind = 0x" ++ (if (@sizeOf(usize) == 8) "{x:0>16}" else "{x:0>8}") ++ " }}\n",
                 .{ v.module_guid, v.full_identifier, @intFromPtr(c.bind_callback), @intFromPtr(c.unbind_callback) },
             ) catch root.oom_panic(),
         }

@@ -14,7 +14,7 @@ canControl: Privilege,
 
 pub fn format(self: @This(), writer: *std.Io.Writer) std.Io.Writer.Error!void {
     try writer.print(
-        "{s} - {f}:{f}:{x:0>4} - {s}",
+        "{s: <16} - {f} : {f} : {x:0>4} - {s}",
         .{ self.name, self.interface, self.identifier, self.specifier, @tagName(self.status) },
     );
 }
@@ -23,7 +23,7 @@ const Privilege = root.lib.Privilege;
 pub const DeviceStatus = enum(usize) {
     failed = 0,
     unset,
-    
+
     unbinded,
     working,
 };

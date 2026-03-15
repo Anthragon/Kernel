@@ -19,7 +19,7 @@ pub const KernelPageAllocator = struct {
             .@"page allocator",
             "allocating {} pages in address {x}",
             false,
-            false,
+            true,
             .{ size, vaddr },
         );
 
@@ -48,7 +48,7 @@ pub const KernelPageAllocator = struct {
             .@"page allocator",
             "reallocating {} pages",
             false,
-            false,
+            true,
             .{size},
         );
 
