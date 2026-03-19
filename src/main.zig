@@ -46,7 +46,7 @@ var boot_info: BootInfo = undefined;
 
 export fn main(_boot_info: BootInfo) noreturn {
     boot_info = _boot_info;
-    sys.assembly.flags.clear_interrupt();
+    sys.interrupts.disable();
 
     // Setting up basic text graphics mode
     basicgl.init(
@@ -115,7 +115,7 @@ export fn main(_boot_info: BootInfo) noreturn {
     log.info("\nSetup finished. Giving control to the scheduler...", .{});
     sys.post_init() catch @panic("System could not be initialized!");
     log.debug("# Giving control to the scheduer...", .{});
-    while (true) sys.assembly.flags.set_interrupt();
+    while (true) sys.interrupts.enable();
     unreachable;
 }
 

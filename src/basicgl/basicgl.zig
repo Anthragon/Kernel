@@ -1,5 +1,6 @@
 const std = @import("std");
 const root = @import("root");
+const builtin = @import("builtin");
 const debug = root.debug;
 
 var framebuffer: []Pixel = undefined;
@@ -61,30 +62,34 @@ pub fn clear() void {
     const fb_ptr = framebuffer.ptr;
     const len: usize = framebuffer.len;
 
-    const blocks: usize = len / 4;
-    const col: u32 = @bitCast(clear_color);
+    switch (builtin.cpu.arch) {
+        .x86_64 => {
+            const blocks: usize = len / 4;
+            const col: u32 = @bitCast(clear_color);
+            if (blocks != 0) {
+                asm volatile (
+                    \\ movl   %[color], %eax
+                    \\ movd   %eax, %xmm0
+                    \\ pshufd $0x00, %xmm0, %xmm0
+                    \\ movq   %[blocks], %rcx
+                    \\ movq   %[dst], %rdi
+                    \\ 1:
+                    \\   movdqu %xmm0, (%rdi)
+                    \\   addq   $16, %rdi
+                    \\   decq   %rcx
+                    \\   jne    1b
+                    :
+                    : [dst] "r" (fb_ptr),
+                      [blocks] "r" (blocks),
+                      [color] "r" (col),
+                    : .{ .rax = true, .rcx = true, .rdi = true, .xmm0 = true, .memory = true, .cc = true });
+            }
 
-    if (blocks != 0) {
-        asm volatile (
-            \\ movl   %[color], %eax
-            \\ movd   %eax, %xmm0
-            \\ pshufd $0x00, %xmm0, %xmm0
-            \\ movq   %[blocks], %rcx
-            \\ movq   %[dst], %rdi
-            \\ 1:
-            \\   movdqu %xmm0, (%rdi)
-            \\   addq   $16, %rdi
-            \\   decq   %rcx
-            \\   jne    1b
-            :
-            : [dst] "r" (fb_ptr),
-              [blocks] "r" (blocks),
-              [color] "r" (col),
-            : .{ .rax = true, .rcx = true, .rdi = true, .xmm0 = true, .memory = true, .cc = true });
+            var start_tail: usize = blocks * 4;
+            while (start_tail < len) : (start_tail += 1) fb_ptr[start_tail] = clear_color;
+        },
+        else => @memset(fb_ptr[0..len], clear_color),
     }
-
-    var start_tail: usize = blocks * 4;
-    while (start_tail < len) : (start_tail += 1) fb_ptr[start_tail] = clear_color;
 }
 pub fn clear_line(line: usize) void {
     for (0..grid_width) |i| {
@@ -115,60 +120,72 @@ pub fn draw_char(c: u8, posx: usize, posy: usize) void {
         const dst_index = gx + (gy + y) * pps;
         const dst_ptr: [*]Pixel = framebuffer[dst_index..].ptr;
 
-        asm volatile (
-            \\ testb   $0x80,   %[msk]
-            \\ cmovnz  %[cfg],  %edi        # if bit=1: [dst] = cfg
-            \\ cmovz   %[cbg],  %edi        # else:     [dst] = cbg
-            \\ movl    %edi,   (%[dst])
-            \\ addq    $4,     %[dst]
-            \\
-            \\ testb   $0x40,   %[msk]
-            \\ cmovnz  %[cfg],  %edi
-            \\ cmovz   %[cbg],  %edi
-            \\ movl    %edi,   (%[dst])
-            \\ addq    $4,     %[dst]
-            \\
-            \\ testb   $0x20,   %[msk]
-            \\ cmovnz  %[cfg],  %edi
-            \\ cmovz   %[cbg],  %edi
-            \\ movl    %edi,   (%[dst])
-            \\ addq    $4,     %[dst]
-            \\
-            \\ testb   $0x10,   %[msk]
-            \\ cmovnz  %[cfg],  %edi
-            \\ cmovz   %[cbg],  %edi
-            \\ movl    %edi,   (%[dst])
-            \\ addq    $4,     %[dst]
-            \\
-            \\ testb   $0x08,   %[msk]
-            \\ cmovnz  %[cfg],  %edi
-            \\ cmovz   %[cbg],  %edi
-            \\ movl    %edi,   (%[dst])
-            \\ addq    $4,     %[dst]
-            \\
-            \\ testb   $0x04,   %[msk]
-            \\ cmovnz  %[cfg],  %edi
-            \\ cmovz   %[cbg],  %edi
-            \\ movl    %edi,   (%[dst])
-            \\ addq    $4,     %[dst]
-            \\
-            \\ testb   $0x02,   %[msk]
-            \\ cmovnz  %[cfg],  %edi
-            \\ cmovz   %[cbg],  %edi
-            \\ movl    %edi,   (%[dst])
-            \\ addq    $4,     %[dst]
-            \\
-            \\ testb   $0x01,   %[msk]
-            \\ cmovnz  %[cfg],  %edi
-            \\ cmovz   %[cbg],  %edi
-            \\ movl    %edi,   (%[dst])
-            \\ addq    $4,     %[dst]
-            :
-            : [msk] "r" (c_line),
-              [dst] "r" (dst_ptr),
-              [cfg] "r" (fg_color),
-              [cbg] "r" (bg_color),
-            : .{ .rdi = true, .rsi = true, .memory = true, .cc = true });
+        switch (builtin.cpu.arch) {
+            .x86_64 => asm volatile (
+                \\ testb   $0x80,   %[msk]
+                \\ cmovnz  %[cfg],  %edi        # if bit=1: [dst] = cfg
+                \\ cmovz   %[cbg],  %edi        # else:     [dst] = cbg
+                \\ movl    %edi,   (%[dst])
+                \\ addq    $4,     %[dst]
+                \\
+                \\ testb   $0x40,   %[msk]
+                \\ cmovnz  %[cfg],  %edi
+                \\ cmovz   %[cbg],  %edi
+                \\ movl    %edi,   (%[dst])
+                \\ addq    $4,     %[dst]
+                \\
+                \\ testb   $0x20,   %[msk]
+                \\ cmovnz  %[cfg],  %edi
+                \\ cmovz   %[cbg],  %edi
+                \\ movl    %edi,   (%[dst])
+                \\ addq    $4,     %[dst]
+                \\
+                \\ testb   $0x10,   %[msk]
+                \\ cmovnz  %[cfg],  %edi
+                \\ cmovz   %[cbg],  %edi
+                \\ movl    %edi,   (%[dst])
+                \\ addq    $4,     %[dst]
+                \\
+                \\ testb   $0x08,   %[msk]
+                \\ cmovnz  %[cfg],  %edi
+                \\ cmovz   %[cbg],  %edi
+                \\ movl    %edi,   (%[dst])
+                \\ addq    $4,     %[dst]
+                \\
+                \\ testb   $0x04,   %[msk]
+                \\ cmovnz  %[cfg],  %edi
+                \\ cmovz   %[cbg],  %edi
+                \\ movl    %edi,   (%[dst])
+                \\ addq    $4,     %[dst]
+                \\
+                \\ testb   $0x02,   %[msk]
+                \\ cmovnz  %[cfg],  %edi
+                \\ cmovz   %[cbg],  %edi
+                \\ movl    %edi,   (%[dst])
+                \\ addq    $4,     %[dst]
+                \\
+                \\ testb   $0x01,   %[msk]
+                \\ cmovnz  %[cfg],  %edi
+                \\ cmovz   %[cbg],  %edi
+                \\ movl    %edi,   (%[dst])
+                \\ addq    $4,     %[dst]
+                :
+                : [msk] "r" (c_line),
+                  [dst] "r" (dst_ptr),
+                  [cfg] "r" (fg_color),
+                  [cbg] "r" (bg_color),
+                : .{ .rdi = true, .rsi = true, .memory = true, .cc = true }),
+
+            else => {
+                var current_dst = dst_ptr;
+                var i: i5 = 7;
+                while (i >= 0) : (i -= 1) {
+                    const bit_set = (c_line >> @as(u3, @intCast(i))) & 1 != 0;
+                    current_dst[0] = if (bit_set) fg_color else bg_color;
+                    current_dst += 1;
+                }
+            },
+        }
     }
 }
 pub fn clear_char(posx: usize, posy: usize) void {
@@ -182,21 +199,29 @@ pub fn clear_char(posx: usize, posy: usize) void {
         const dst_ptr: [*]Pixel = framebuffer[dst_index..].ptr;
         const blocks: usize = 2;
 
-        asm volatile (
-            \\ movl   %[color], %%eax        // coloca a cor em eax
-            \\ movd   %%eax, %%xmm0          // move 32-bit para xmm0
-            \\ pshufd $0x00, %%xmm0, %%xmm0 // duplica 4 bytes para 16 bytes
-            \\ movq   %[blocks], %%rcx       // contador
-            \\ movq   %[dst], %%rdi          // ponteiro de destino
-            \\ 1:
-            \\   movdqu %%xmm0, (%%rdi)      // escreve 16 bytes
-            \\   addq   $16, %%rdi
-            \\   decq %%rcx
-            \\   jne 1b
-            :
-            : [dst] "r" (dst_ptr),
-              [blocks] "r" (blocks),
-              [color] "r" (bg_color),
-            : .{ .rax = true, .rcx = true, .rdi = true, .xmm0 = true, .memory = true, .cc = true });
+        switch (builtin.cpu.arch) {
+            .x86_64 => asm volatile (
+                \\ movl   %[color], %%eax
+                \\ movd   %%eax, %%xmm0
+                \\ pshufd $0x00, %%xmm0, %%xmm0
+                \\ movq   %[blocks], %%rcx
+                \\ movq   %[dst], %%rdi
+                \\ 1:
+                \\   movdqu %%xmm0, (%%rdi)
+                \\   addq   $16, %%rdi
+                \\   decq %%rcx
+                \\   jne 1b
+                :
+                : [dst] "r" (dst_ptr),
+                  [blocks] "r" (blocks),
+                  [color] "r" (bg_color),
+                : .{ .rax = true, .rcx = true, .rdi = true, .xmm0 = true, .memory = true, .cc = true }),
+
+            else => {
+                const num_pixels = 8;
+                const row_slice = framebuffer[dst_index .. dst_index + num_pixels];
+                @memset(row_slice, bg_color);
+            },
+        }
     }
 }
