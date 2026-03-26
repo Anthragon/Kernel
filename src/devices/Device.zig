@@ -20,6 +20,9 @@ canControl: Privilege,
 implPointer: *anyopaque,
 implVtable: *const VTable,
 
+previousDevice: *@This() = undefined,
+nextDevice: *@This() = undefined,
+
 pub fn format(self: @This(), writer: *std.Io.Writer) std.Io.Writer.Error!void {
     try writer.print(
         "{s: <16} - {f} : {f} : {x:0>4} - {s}",

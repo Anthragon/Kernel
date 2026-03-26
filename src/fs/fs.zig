@@ -36,9 +36,8 @@ pub fn init() void {
     root.capabilities.register_callable(Guid.zero(), "Fs", "chroot", @ptrCast(&chroot)) catch unreachable;
     root.capabilities.register_callable(Guid.zero(), "Fs", "append_file_system", @ptrCast(&append_file_system)) catch unreachable;
     root.capabilities.register_callable(Guid.zero(), "Fs", "remove_file_system", @ptrCast(&remove_file_system)) catch unreachable;
-    root.capabilities.register_callable(Guid.zero(), "Fs", "mount_disk", @ptrCast(&mount_disk)) catch unreachable;
-    root.capabilities.register_callable(Guid.zero(), "Fs", "mount_part", @ptrCast(&mount_part)) catch unreachable;
-    root.capabilities.register_callable(Guid.zero(), "Fs", "mount_disk_by_identifier_part_by_identifier", @ptrCast(&mount_disk_by_identifier_part_by_identifier)) catch unreachable;
+    root.capabilities.register_callable(Guid.zero(), "Fs", "mount", @ptrCast(&mount)) catch unreachable;
+    root.capabilities.register_callable(Guid.zero(), "Fs", "mount_by_id", @ptrCast(&mount_by_id)) catch unreachable;
 }
 
 pub inline fn get_fs_allocator() std.mem.Allocator {
@@ -73,10 +72,7 @@ fn remove_file_system(name: ?[*:0]const u8) callconv(.c) void {
     allocator.destroy(instance);
 }
 
-pub fn mount_disk(disk: *anyopaque) void {
-    _ = disk;
-}
-pub fn mount_part(part: *PartEntry) FsNode {
+pub fn mount(part: *PartEntry) FsNode {
     log.debug("Mounting partition...", .{});
 
     const fs = get_partition_fs(part) orelse @panic("No compatible file system found!");
@@ -84,14 +80,14 @@ pub fn mount_part(part: *PartEntry) FsNode {
     part.file_system = fs;
     return fs.vtable.mount(part);
 }
-pub fn mount_disk_by_identifier_part_by_identifier(disk: [*:0]const u8, part: [*:0]const u8) callconv(.c) FsNode {
+pub fn mount_by_id(disk: [*:0]const u8, part: [*:0]const u8) callconv(.c) FsNode {
     log.debug("mount requested - {s} : {s}", .{ disk, part });
 
     const getdbipbi: *const fn ([*:0]const u8, [*:0]const u8) callconv(.c) ?*lib.common.PartEntry =
-        @ptrCast(@alignCast((root.capabilities.get_callable("Devices.MassStorage::get_disk_by_identifier_part_by_identifier") catch @panic("Not a callable") orelse @panic("Callable not found!"))));
+        @ptrCast(@alignCast((root.capabilities.get_callable("Devices.MassStorage::get_partition_by_id") catch @panic("Not a callable") orelse @panic("Callable not found!"))));
 
     const entry = getdbipbi(disk, part) orelse @panic("Trying to mount a null partition entry!");
-    return mount_part(entry);
+    return mount(entry);
 }
 
 fn get_partition_fs(part: *PartEntry) ?*FileSystemEntry {

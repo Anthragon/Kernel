@@ -17,6 +17,7 @@ const Guid = utils.Guid;
 var arena: std.heap.ArenaAllocator = undefined;
 var allocator: std.mem.Allocator = undefined;
 
+var head: ?*Device = null;
 var devices_map: std.AutoHashMapUnmanaged(usize, *Device) = .empty;
 var devices_count: usize = 0;
 var last_assigned_id: usize = 0;
@@ -46,8 +47,7 @@ pub fn init() void {
     capabilities.comptime_register_callable(Guid.zero(), "Devices", "remove", @ptrCast(&c__remove_device)) catch unreachable;
     capabilities.comptime_register_callable(Guid.zero(), "Devices", "set_status", @ptrCast(&c__set_status)) catch unreachable;
     capabilities.comptime_register_callable(Guid.zero(), "Devices", "control", @ptrCast(&c__control)) catch unreachable;
-
-    //_ = root.capabilities.create_event(devices_res, "on_device_registered", on_device_registered_bind, on_pci_device_probe_unbind) catch unreachable;
+    capabilities.comptime_register_callable(Guid.zero(), "Devices", "foreach_devices", @ptrCast(&foreach_devices)) catch unreachable;
 }
 
 fn register_device(
@@ -89,6 +89,17 @@ fn register_device(
     devices_map.put(allocator, index, dev) catch root.oom_panic();
     devices_count += 1;
     run_device_registered_all_callbacks(index, dev);
+
+    if (head == null) {
+        head = dev;
+        dev.previousDevice = dev;
+        dev.nextDevice = dev;
+    } else {
+        dev.nextDevice = head.?;
+        dev.previousDevice = head.?.previousDevice;
+        head.?.previousDevice.nextDevice = dev;
+        head.?.previousDevice = dev;
+    }
 
     log.debug("Registered device {s} in slot {}", .{ dev.name, index });
 
@@ -173,7 +184,7 @@ fn c__control(dev: usize, ctlValue: [*]usize, ctlLen: usize) callconv(.c) Result
         );
         if (!res.isok()) return res;
     } else return .err(.notFound);
-    
+
     return .val(0);
 }
 
@@ -233,6 +244,24 @@ fn run_all_devices_registered_callback(entry: OnDeviceRegisterEntry) void {
     }
 }
 
+pub fn foreach_devices(devInfo: *?Device, identifier: Guid, specifier: usize, interface: Guid) callconv(.c) Result(bool) {
+    if (head == null) return .val(false);
+    var d = if (devInfo.*) |a| a.nextDevice else head.?;
+
+    while ((identifier.isZero() or d.identifier != identifier) and
+        (specifier == 0 or d.specifier != specifier) and
+        (interface.isZero() or d.interface != interface))
+    {
+        d = devInfo.*.?.nextDevice;
+        if (d == head) {
+            devInfo.* = null;
+            return .val(false);
+        }
+    }
+
+    devInfo.* = d.*;
+    return .val(true);
+}
 pub fn lsdev() callconv(.c) void {
     log.warn("lsdev", .{});
     log.info("Listing registered devices ({}):", .{devices_count});
