@@ -8,9 +8,9 @@ const capabilities = root.capabilities;
 
 const log = std.log.scoped(.devices);
 
-const Device = @import("Device.zig");
-const RegisterDeviceInfo = root.lib.common.devices.RegisterInfo;
+const Device = root.lib.common.devices.Device;
 const DeviceStatus = root.lib.common.devices.Status;
+const RegisterDeviceInfo = root.lib.common.devices.RegisterInfo;
 const Result = interop.Result;
 const Guid = utils.Guid;
 
@@ -68,12 +68,19 @@ fn register_device(
     const dev = allocator.create(Device) catch root.oom_panic();
     errdefer allocator.free(dev);
 
+    const index = brk: {
+        var idx: usize = last_assigned_id +% 1;
+        while (devices_map.contains(idx) or idx == 0) idx = idx +% 1;
+        break :brk idx;
+    };
+
     dev.* = .{
+        .id = index,
         .name = nameclone,
         .identifier = identifier,
         .specifier = specifier,
         .interface = interface,
-        .status = if (status == .unset) Device.Status.unbinded else status,
+        .status = if (status == .unset) .unbinded else status,
         .canSee = canSee,
         .canRead = canRead,
         .canControl = canControl,
@@ -81,11 +88,6 @@ fn register_device(
         .implVtable = implVtable,
     };
 
-    const index = brk: {
-        var idx: usize = last_assigned_id +% 1;
-        while (devices_map.contains(idx) or idx == 0) idx = idx +% 1;
-        break :brk idx;
-    };
     devices_map.put(allocator, index, dev) catch root.oom_panic();
     devices_count += 1;
     run_device_registered_all_callbacks(index, dev);
@@ -117,7 +119,7 @@ fn remove_device(dev: usize) !void {
     _ = devices_map.remove(dev);
     devices_count -= 1;
 }
-fn set_status(dev: usize, status: Device.Status) !void {
+fn set_status(dev: usize, status: DeviceStatus) !void {
     if (dev == 0) return error.DoesNotExist;
     const d = devices_map.get(dev);
     if (d == null) return error.DoesNotExist;
@@ -170,7 +172,7 @@ fn c__register_devices(devInfoPtr: [*]RegisterDeviceInfo, devInfoCount: usize) c
 fn c__remove_device(dev: usize) callconv(.c) Result(void) {
     return .frombuiltin(remove_device(dev));
 }
-fn c__set_status(dev: usize, status: Device.Status) callconv(.c) Result(void) {
+fn c__set_status(dev: usize, status: DeviceStatus) callconv(.c) Result(void) {
     return .frombuiltin(set_status(dev, status));
 }
 fn c__control(dev: usize, ctlValue: [*]usize, ctlLen: usize) callconv(.c) Result(usize) {
@@ -244,35 +246,38 @@ fn run_all_devices_registered_callback(entry: OnDeviceRegisterEntry) void {
     }
 }
 
-pub fn foreach_devices(devInfo: *?Device, identifier: Guid, specifier: usize, interface: Guid) callconv(.c) Result(bool) {
+pub fn foreach_devices(devInfo: *?*const Device, identifier: Guid, specifier: usize, interface: Guid) callconv(.c) Result(bool) {
     if (head == null) return .val(false);
+
+    if (devInfo.* != null and devInfo.*.?.nextDevice == head) {
+        devInfo.* = null;
+        return .val(false);
+    }
     var d = if (devInfo.*) |a| a.nextDevice else head.?;
 
-    while ((identifier.isZero() or d.identifier != identifier) and
-        (specifier == 0 or d.specifier != specifier) and
-        (interface.isZero() or d.interface != interface))
-    {
-        d = devInfo.*.?.nextDevice;
-        if (d == head) {
+    while (!match(d, identifier, specifier, interface)) {
+        if (d.nextDevice == head) {
             devInfo.* = null;
             return .val(false);
         }
+        d = d.nextDevice;
     }
 
-    devInfo.* = d.*;
+    devInfo.* = d;
     return .val(true);
 }
+fn match(d: *const Device, identifier: Guid, specifier: usize, interface: Guid) bool {
+    return (identifier.isZero() or d.identifier == identifier) and
+        (specifier == 0 or d.specifier == specifier) and
+        (interface.isZero() or d.interface == interface);
+}
+
 pub fn lsdev() callconv(.c) void {
     log.warn("lsdev", .{});
     log.info("Listing registered devices ({}):", .{devices_count});
 
-    devices_map.lockPointers();
-    var devices_iterator = devices_map.iterator();
-    while (devices_iterator.next()) |dev| {
-        log.info(
-            "{:0>4}: {f}",
-            .{ dev.key_ptr.*, dev.value_ptr.* },
-        );
+    var dev: ?*const Device = null;
+    while (foreach_devices(&dev, .zero(), 0, .zero()).asbuiltin() catch false) {
+        log.info("{f}", .{dev.?});
     }
-    devices_map.unlockPointers();
 }

@@ -1,3 +1,4 @@
+const std = @import("std");
 const root = @import("../root.zig");
 const Guid = root.utils.Guid;
 const Result = root.interop.Result;
@@ -29,6 +30,35 @@ pub const RegisterInfo = extern struct {
     status: Status = .unset,
     implPointer: *anyopaque,
     implVtable: *const VTable,
+};
+
+pub const Device = struct {
+    const Privilege = root.Privilege;
+
+    id: usize,
+
+    name: [:0]const u8,
+    identifier: root.utils.Guid,
+    interface: root.utils.Guid,
+    specifier: usize,
+    status: Status,
+
+    canSee: Privilege,
+    canRead: Privilege,
+    canControl: Privilege,
+
+    implPointer: *anyopaque,
+    implVtable: *const VTable,
+
+    previousDevice: *@This() = undefined,
+    nextDevice: *@This() = undefined,
+
+    pub fn format(self: @This(), writer: *std.Io.Writer) std.Io.Writer.Error!void {
+        try writer.print(
+            "{:0>4} : {s: <16} - {f} : {f} : {x:0>4} - {s}",
+            .{ self.id, self.name, self.interface, self.identifier, self.specifier, @tagName(self.status) },
+        );
+    }
 };
 
 pub const VTable = extern struct {
