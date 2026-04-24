@@ -8,15 +8,15 @@ const log = std.log.scoped(.no_header);
 pub const serial = system.io.serial;
 const tty_config: std.io.tty.Config = .no_color;
 
-const stdout = 1;
-const stderr = 2;
+const stdout = 0;
+const stderr = 1;
 
 var locked_frame: usize = 0;
 
 pub const gout = @import("gout.zig");
 
 pub fn dumpStackTrace(ret_address: usize) void {
-    const writer = serial.chardev(stderr);
+    const writer = serial.get_writer(stderr);
 
     const real_ret_addr = if (locked_frame == 0) ret_address else locked_frame;
 
@@ -187,7 +187,7 @@ fn aloc_print(
 }
 
 fn write_log_message(out: bool, err: bool, scr: bool, content: []const u8) void {
-    if (out) serial.chardev(1).writeAll(content) catch unreachable;
-    if (err) serial.chardev(2).writeAll(content) catch unreachable;
+    if (out) serial.get_writer(0).writeAll(content) catch unreachable;
+    if (err) serial.get_writer(1).writeAll(content) catch unreachable;
     if (scr) gout.swriter().writeAll(content) catch unreachable;
 }

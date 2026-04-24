@@ -142,7 +142,7 @@ pub fn comptime_register_callable(
 ) !void {
     comptime {
         const comptime_symbol = std.fmt.comptimePrint(
-            "cap privileged_callable [{f}]{s}::{s}",
+            "cap [{f}] PC {s}::{s}",
             .{ module_uuid, namespace, symbol },
         );
         const exportOptions: std.builtin.ExportOptions = .{ .name = comptime_symbol };

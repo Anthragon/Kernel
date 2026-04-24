@@ -42,11 +42,15 @@ pub const std_options = @import("std_options.zig").options;
 
 const log = std.log.scoped(.main);
 
-var boot_info: BootInfo = undefined;
+export var boot_info: BootInfo = undefined;
 
-export fn main(_boot_info: BootInfo) noreturn {
-    boot_info = _boot_info;
+export fn main() callconv(.c) noreturn {
+    const fb = @as([*]u32, @ptrCast(@alignCast(boot_info.framebuffer.framebuffer)))[0 .. boot_info.framebuffer.buffer_length / 4];
+    @memset(fb, 0x0000ff00);
+
     sys.interrupts.disable();
+
+    @memset(fb, 0x000000ff);
 
     // Setting up basic text graphics mode
     basicgl.init(
@@ -112,8 +116,8 @@ export fn main(_boot_info: BootInfo) noreturn {
     log.info("", .{});
     threading.procman.lstasks();
 
-    log.info("\nSetup finished. Giving control to the scheduler...", .{});
     sys.post_init() catch @panic("System could not be initialized!");
+    log.info("\nSetup finished. Giving control to the scheduler...", .{});
     log.debug("# Giving control to the scheduer...", .{});
     while (true) sys.interrupts.enable();
     unreachable;

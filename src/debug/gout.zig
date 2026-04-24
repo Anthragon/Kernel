@@ -78,9 +78,7 @@ fn screen_buffer_write(bytes: []const u8) void {
 fn push_lines_up(offset: usize) void {
     if (offset == 0) return;
 
-    //const sw: usize = @min(max_screen_width, gl.grid_width);
     const sh: usize = @min(max_screen_height, gl.grid_height);
-    const sw: usize = @min(max_screen_width, std.mem.alignForward(usize, gl.grid_width, 16));
     const mw = max_screen_width;
 
     const lines_to_copy = sh - offset + 1;
@@ -90,41 +88,17 @@ fn push_lines_up(offset: usize) void {
         const src_off = (i + offset) * mw;
         const dst_off = i * mw;
 
-        const blocks = sw / 16;
-        asm volatile (
-            \\ movq   %[src], %%rsi
-            \\ movq   %[dst], %%rdi
-            \\ 1:
-            \\   movdqu (%%rsi), %%xmm0
-            \\   movdqu %%xmm0, (%%rdi)
-            \\   addq   $16, %%rsi
-            \\   addq   $16, %%rdi
-            \\   decq   %[i]
-            \\   jne    1b
-            :
-            : [src] "r" (&dst[src_off]),
-              [dst] "r" (&dst[dst_off]),
-              [i] "r" (blocks),
-            : .{ .rsi = true, .rdi = true, .xmm0 = true, .memory = true, .cc = true });
+        const src_slice = dst[src_off .. src_off + mw];
+        const dst_slice = dst[dst_off .. dst_off + mw];
+
+        @memcpy(dst_slice, src_slice);
     }
 
     for (0..offset + 1) |j| {
         const off = (sh - offset + j) * mw;
-        const blocks = mw / 16;
+        const slice = dst[off .. off + mw];
 
-        asm volatile (
-            \\ pxor %%xmm0, %%xmm0
-            \\ movq %[blocks], %%rcx
-            \\ movq %[dst], %%rdi
-            \\ 1:
-            \\   movdqu %%xmm0, (%%rdi)
-            \\   addq   $16, %%rdi
-            \\   decq   %%rcx
-            \\   jne    1b
-            :
-            : [dst] "r" (&dst[off]),
-              [blocks] "r" (blocks),
-            : .{ .rcx = true, .rdi = true, .xmm0 = true, .memory = true, .cc = true });
+        @memset(slice, 0);
     }
 
     screeny -= offset;

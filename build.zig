@@ -52,7 +52,7 @@ pub fn build(b: *std.Build) void {
     });
 
     kernel_mod.code_model = switch (target_arch) {
-        .aarch64 => .small,
+        .aarch64 => .large,
         .x86_64 => .kernel,
         else => unreachable,
     };
